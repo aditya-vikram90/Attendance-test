@@ -1321,7 +1321,7 @@ def records(day):
 
 def build_summary(day, with_tasks=True, pids=None, user_id=None):
     if "mobile_refresh" in globals():
-        try: mobile_refresh(day)
+        try: globals()["mobile_refresh"](day)
         except Exception: pass
     ros, recs = roster(pids), records(day)
     entered = entered_checker()
@@ -2013,7 +2013,7 @@ def projects_page():
         p["leads"] = ", ".join(r["email"] for r in db().execute("SELECT email FROM project_access WHERE project_id=? AND kind='lead' ORDER BY email", (p["id"],)))
         p["count"] = len(team(p["id"])); p["editable"] = can_edit(p["id"])
         p["has_subs"] = any(q["parent"] == p["id"] for q in ps)
-        p["sites"] = mobile_site_rows(p["id"]) if "mobile_site_rows" in globals() else []
+        p["sites"] = globals()["mobile_site_rows"](p["id"]) if "mobile_site_rows" in globals() else []
     return render_template("projects.html", day=today(), projects=ps, op_projects=op_projects(), can_create=can_create(),
                            watching={p["id"] for p in watched()})
 
@@ -2091,7 +2091,7 @@ def wf_setup():
     mem = members(pid)
     own = {r["member_id"]: {x for x in (r["weekly_off"] or "").split(",") if x} for r in db().execute("SELECT member_id, weekly_off FROM team WHERE project_id=?", (pid,))}
     dflt = {x for x in ((info["weekly_off"] if info else "") or "").split(",") if x}
-    sites = mobile_site_rows(pid) if "mobile_site_rows" in globals() else []
+    sites = globals()["mobile_site_rows"](pid) if "mobile_site_rows" in globals() else []
     return render_template("project_setup.html", projects=ps, pid=pid, chain=ch, levels=LEVELS, info=dict(info) if info else {},
                            members=mem, officers=offs, days=DAYS, own_off=own, dflt_off=dflt, site_off=sorted(WEEKLY_OFF),
                            sites=sites)
@@ -3036,7 +3036,7 @@ def admin_transfer_engineer():
     redirect_pid = request.form.get("current_project") or target_pid
     db().commit()
     try:
-        sites = mobile_site_rows(target_pid) if "mobile_site_rows" in globals() else []
+        sites = globals()["mobile_site_rows"](target_pid) if "mobile_site_rows" in globals() else []
         pm_leads = [r["email"] for r in db().execute("SELECT email FROM project_access WHERE project_id=? AND kind='lead'", (str(target_pid),)).fetchall() if r["email"]]
         mailer.notify_project_assignment(u["email"], u["name"], tp["name"], u["role_title"], sites=sites)
         for pme in pm_leads:
@@ -3907,11 +3907,11 @@ def scheduler():
             if c.execute("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT DO NOTHING", ("purge_" + d, now.isoformat())).rowcount:
                 c.commit()
                 if "purge_events" in globals():
-                    n = purge_events()
+                    n = globals()["purge_events"]()
                     if n: app.logger.info("removed location details from %d old check-in events", n)
             c.commit()
             if "mobile_refresh_recent" in globals():
-                mobile_refresh_recent()                         # phone check-ins: wait times pass with the clock, so work the day out again
+                globals()["mobile_refresh_recent"]()                         # phone check-ins: wait times pass with the clock, so work the day out again
             globals().get("wf_refresh_bg", lambda: None)()      # approvals: new items, re-routing, escalation to admin
             if SUMMARY_TO and E("SMTP_HOST") and now.strftime("%H:%M") >= SUMMARY_TIME and now.strftime("%a").lower() not in WEEKLY_OFF:
                 if c.execute("INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT DO NOTHING", ("sent_" + d, now.isoformat())).rowcount:

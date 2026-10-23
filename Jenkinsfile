@@ -28,7 +28,7 @@ pipeline {
                     CID=$(hostname 2>/dev/null || echo "jenkins")
                     docker run --rm --volumes-from "$CID" -w "$PWD/attendance-service" python:3.12-slim bash -c "
                         pip install --no-cache-dir flake8 && \
-                        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                        flake8 . --exclude=venv,__pycache__ --count --select=E9,F63,F7,F82 --show-source --statistics
                     "
                 '''
             }
