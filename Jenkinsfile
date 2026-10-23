@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         REGISTRY_HOST = 'ghcr.io'
-        GITHUB_USER   = 'your-github-username'   // <-- Replace with your GitHub username (lowercase)
-        IMAGE_NAME    = "ghcr.io/${aditya-vikram90}/attendance-service"
-        IMAGE_TAG     = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+        GITHUB_USER   = 'aditya-vikram90'
+        IMAGE_NAME    = 'ghcr.io/aditya-vikram90/attendance-service'
+        IMAGE_TAG     = "${env.BUILD_NUMBER}"
         DEPLOY_PATH   = '/opt/attendance-stack'
     }
 
@@ -25,7 +25,8 @@ pipeline {
         stage('Python Lint') {
             steps {
                 sh '''
-                    docker run --rm -v "$(pwd)/attendance-service":/app -w /app python:3.12-slim bash -c "
+                    CID=$(hostname 2>/dev/null || echo "jenkins")
+                    docker run --rm --volumes-from "$CID" -w "$PWD/attendance-service" python:3.12-slim bash -c "
                         pip install --no-cache-dir flake8 && \
                         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
                     "
@@ -36,7 +37,8 @@ pipeline {
         stage('Compile Keycloak Java SPI') {
             steps {
                 sh '''
-                    docker run --rm -v "$(pwd)/keycloak-spi":/app -w /app maven:3.9-eclipse-temurin-21 mvn clean package -DskipTests
+                    CID=$(hostname 2>/dev/null || echo "jenkins")
+                    docker run --rm --volumes-from "$CID" -w "$PWD/keycloak-spi" maven:3.9-eclipse-temurin-21 mvn clean package -DskipTests
                     ls -lh keycloak-spi/target/*.jar
                 '''
             }
@@ -77,8 +79,7 @@ pipeline {
                                 ubuntu@\${SERVER_IP}:\${DEPLOY_PATH}/local-replica/providers/
 
                             # 2. Deploy container on AWS
-                            ssh -o StrictHostKeyChecking=no ubuntu@\${SERVER_IP} << 'EOF'
-                                sudo -i
+                            ssh -o StrictHostKeyChecking=no ubuntu@\${SERVER_IP} "bash -s" << EOF
                                 cd \${DEPLOY_PATH}
                                 echo "\${GH_TOKEN}" | docker login "\${REGISTRY_HOST}" -u "\${GH_USER}" --password-stdin
                                 docker pull "\${IMAGE_NAME}:latest"
@@ -89,7 +90,7 @@ pipeline {
                                 HEALTH=\\\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8090/healthz || echo "000")
                                 echo "Health check HTTP status: \\\$HEALTH"
                                 [ "\\\$HEALTH" -eq 200 ] || [ "\\\$HEALTH" -eq 302 ] || exit 1
-                            EOF
+EOF
                         """
                     }
                 }
