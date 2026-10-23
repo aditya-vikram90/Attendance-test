@@ -74,12 +74,14 @@ pipeline {
                 ]) {
                     sshagent(['aws-ec2-ssh-key']) {
                         sh """
-                            # 1. Transfer SPI JAR
+                            # 1. Transfer SPI JAR to /tmp (avoids permission errors on /opt)
                             scp -o StrictHostKeyChecking=no keycloak-spi/target/keycloak-attendance-user-storage-1.0.0.jar \
-                                ubuntu@\${SERVER_IP}:\${DEPLOY_PATH}/local-replica/providers/
+                                ubuntu@\${SERVER_IP}:/tmp/keycloak-attendance-user-storage-1.0.0.jar
 
-                            # 2. Deploy container on AWS
+                            # 2. Deploy container and install SPI on AWS
                             ssh -o StrictHostKeyChecking=no ubuntu@\${SERVER_IP} "bash -s" << EOF
+                                sudo cp /tmp/keycloak-attendance-user-storage-1.0.0.jar \${DEPLOY_PATH}/local-replica/providers/
+                                sudo chown -R ubuntu:docker \${DEPLOY_PATH}
                                 cd \${DEPLOY_PATH}
                                 echo "\${GH_TOKEN}" | docker login "\${REGISTRY_HOST}" -u "\${GH_USER}" --password-stdin
                                 docker pull "\${IMAGE_NAME}:latest"
