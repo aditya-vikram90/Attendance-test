@@ -1,0 +1,331 @@
+{% extends "base.html" %}{% block body %}
+<div class="bar">
+  <span class="mute">Manage team members and shift times for <strong>{{ cur_pname }}</strong> · default shift {{shift_start}}</span>
+  <button type="button" class="btn alt" style="margin-left:auto;white-space:nowrap;font-size:13px;padding:5px 12px;font-weight:600" onclick="openAddMemberModal()">Manage Team</button>
+</div>
+
+<div class="tabs">{% for p in projects %}<a class="{{ 'on' if p.id==pid }}" href="{{ url_for('team_page', project=p.id) }}">{{p.name}}</a>{% endfor %}</div>
+
+<div class="card" style="margin-bottom:16px">
+  <table>
+    <thead>
+      <tr>
+        <th>Engineer</th>
+        <th>Role</th>
+        <th>Contact number</th>
+        <th>Email</th>
+        <th>Shift start</th>
+        <th>Source</th>
+        <th style="text-align:right">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in team %}
+      <tr class="{{ '' if m.active else 'off' }}">
+        <td><b>{{m.name}}</b></td>
+        <td>{{m.role or 'Engineer'}}</td>
+        <td>{{ m.phone or '—' }}</td>
+        <td>{{ m.email or '—' }}</td>
+        <td>
+          {% if m.active %}
+          <form method="post" action="{{ url_for('team_update') }}" class="inline" style="margin:0">
+            <input type="hidden" name="csrf" value="{{csrf}}">
+            <input type="hidden" name="project" value="{{pid}}">
+            <input type="hidden" name="member" value="{{m.id}}">
+            <input type="time" name="shift" value="{{ m.shift or shift_start }}" style="padding:2px 6px">
+            <button class="btn alt" name="action" value="save" style="padding:3px 8px;font-size:12px">Save</button>
+          </form>
+          {% else %}
+          <span class="mute">{{ m.shift or shift_start }}</span>
+          {% endif %}
+        </td>
+        <td class="mute">
+          {% if m.active and not (m.role and m.phone) %}<span class="warn">Incomplete Profile · </span>{% endif %}
+          {{ 'OpenProject' if m.op_uid else 'Keycloak User' }}
+          {% if not m.active %}
+            · {% if m.other_project %}transferred to {{m.other_project}}{% else %}on bench{% endif %}
+          {% endif %}
+        </td>
+        <td style="text-align:right;white-space:nowrap">
+          {% if m.active %}
+          <form method="post" action="{{ url_for('team_update') }}" style="display:inline;margin:0">
+            <input type="hidden" name="csrf" value="{{csrf}}">
+            <input type="hidden" name="project" value="{{pid}}">
+            <input type="hidden" name="member" value="{{m.id}}">
+            <button class="alt" name="action" value="remove" style="color:var(--red);border-color:#fde3e0;font-size:12px;padding:3px 8px" onclick="return confirm('Are you sure you want to release {{m.name}} to the Bench Pool?')" title="Release engineer to Bench Pool">Remove</button>
+          </form>
+          {% if is_admin and all_projects|length > 1 and m.user_id %}
+          <form method="post" action="{{ url_for('admin_transfer_engineer') }}" class="inline" style="margin:0 0 0 6px">
+            <input type="hidden" name="csrf" value="{{csrf}}">
+            <input type="hidden" name="current_project" value="{{pid}}">
+            <input type="hidden" name="user_id" value="{{m.user_id}}">
+            <select name="target_project" onchange="if(this.value && confirm('Transfer {{m.name}} to selected project?')) this.form.submit(); else this.selectedIndex=0;" style="font-size:11px;padding:2px 4px;height:24px;border:1px solid var(--line);border-radius:4px" title="Transfer engineer to another project">
+              <option value="">Transfer to...</option>
+              {% for pr in all_projects if pr.id != pid %}
+              <option value="{{pr.id}}">{{pr.name}}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% endif %}
+          {% elif m.other_project %}
+          <span class="mute" style="font-size:12px">Active in: {{m.other_project}}</span>
+          {% else %}
+          <form method="post" action="{{ url_for('team_update') }}" style="display:inline;margin:0">
+            <input type="hidden" name="csrf" value="{{csrf}}">
+            <input type="hidden" name="project" value="{{pid}}">
+            <input type="hidden" name="member" value="{{m.id}}">
+            <button class="alt" name="action" value="restore" style="font-size:12px;padding:3px 8px" title="Restore engineer to this project">Put back</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="none" style="text-align:center;padding:24px">
+          No team members assigned to this project yet.
+          <div style="margin-top:8px">
+            <button type="button" class="btn" style="font-size:12px;padding:5px 12px" onclick="openAddMemberModal()">Manage Team</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mute" style="margin-top:0;margin-bottom:20px;font-size:12px">Note: Removing an engineer preserves all their historical attendance records and releases them to the Bench Pool.</p>
+
+<!-- Manage Team Modal Dialog -->
+<div id="addMemberModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+  <div style="background:#fff;border-radius:10px;box-shadow:0 16px 36px rgba(0,0,0,0.28);width:min(880px, 95vw);max-height:90vh;overflow-y:auto;padding:24px;position:relative;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+    
+    <!-- Modal Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px">
+      <div>
+        <h3 style="margin:0;font-size:18px;color:var(--nav);font-weight:600">Manage Team</h3>
+        <span class="mute" style="font-size:12px">Current View: <strong>{{ cur_pname }}</strong></span>
+      </div>
+      <button type="button" onclick="closeAddMemberModal()" style="background:none;border:none;font-size:24px;line-height:1;color:var(--mute);cursor:pointer;padding:0 4px">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">Search Engineer by Email or Name:</label>
+        <input type="text" id="modal_search_input" placeholder="Type email or name to search directory..." style="width:100%;box-sizing:border-box" autofocus>
+      </div>
+
+      <!-- Search Results Area -->
+      <div id="modal_results_area" style="display:flex;flex-direction:column;gap:10px;min-height:40px;max-height:380px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--line);padding-top:12px">
+      <button type="button" class="btn alt" style="font-size:12px;padding:5px 16px" onclick="closeAddMemberModal()">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var currentProjectId = '{{pid}}';
+var curProjectName = {{ cur_pname|tojson }};
+var csrfToken = '{{csrf}}';
+var defaultShift = '{{shift_start}}';
+var isAdmin = {{ 'true' if is_admin else 'false' }};
+var allProjects = {{ all_projects|tojson }};
+var searchDebounceTimer = null;
+
+function openAddMemberModal() {
+  var modal = document.getElementById('addMemberModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    var inp = document.getElementById('modal_search_input');
+    if (inp) {
+      inp.focus();
+      inp.select();
+      if (inp.value && inp.value.trim().length > 0) {
+        executeUserSearch();
+      }
+    }
+  }
+}
+window.openAddMemberModal = openAddMemberModal;
+
+function closeAddMemberModal() {
+  var modal = document.getElementById('addMemberModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+window.closeAddMemberModal = closeAddMemberModal;
+
+var modalBackdrop = document.getElementById('addMemberModal');
+if (modalBackdrop) {
+  modalBackdrop.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeAddMemberModal();
+    }
+  });
+}
+
+var searchInput = document.getElementById('modal_search_input');
+if (searchInput) {
+  function handleInputDebounced() {
+    clearTimeout(searchDebounceTimer);
+    var q = (searchInput.value || '').trim();
+    if (!q) {
+      document.getElementById('modal_results_area').innerHTML = '';
+      return;
+    }
+    searchDebounceTimer = setTimeout(function() {
+      executeUserSearch();
+    }, 250);
+  }
+
+  searchInput.addEventListener('input', handleInputDebounced);
+  searchInput.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+      clearTimeout(searchDebounceTimer);
+      executeUserSearch();
+    }
+  });
+}
+
+function updateCardButtonState(selectElem) {
+  var currentPidStr = selectElem.getAttribute('data-current-pid') || '';
+  var form = selectElem.closest('form');
+  if (!form) return;
+  var btn = form.querySelector('.card-action-btn');
+  if (!btn) return;
+  var targetPid = String(selectElem.value || '');
+
+  if (targetPid && targetPid === String(currentPidStr)) {
+    btn.textContent = 'Save Shift Time';
+    btn.disabled = false;
+    btn.className = 'btn alt card-action-btn';
+  } else if (!currentPidStr) {
+    btn.textContent = '+ Assign to Team';
+    btn.disabled = false;
+    btn.className = 'btn card-action-btn';
+  } else {
+    if (isAdmin) {
+      btn.textContent = 'Transfer & Assign';
+      btn.disabled = false;
+      btn.className = 'btn card-action-btn';
+    } else {
+      btn.textContent = 'Transfer (Admin Required)';
+      btn.disabled = true;
+      btn.className = 'btn alt card-action-btn';
+    }
+  }
+}
+
+function executeUserSearch() {
+  var q = (document.getElementById('modal_search_input').value || '').trim();
+  var resArea = document.getElementById('modal_results_area');
+  if (!q) {
+    resArea.innerHTML = '';
+    return;
+  }
+
+  resArea.innerHTML = '<div class="mute" style="text-align:center;padding:12px">Searching...</div>';
+
+  fetch('/attendance/api/users/search?project=' + encodeURIComponent(currentProjectId) + '&q=' + encodeURIComponent(q))
+    .then(function(r) { return r.json(); })
+    .then(function(users) {
+      if (!users || users.length === 0) {
+        resArea.innerHTML = '<div class="mute" style="text-align:center;padding:12px">No active user found matching "<b>' + escapeHtml(q) + '</b>".</div>';
+        return;
+      }
+
+      var html = '';
+      users.forEach(function(u) {
+        var currentPidStr = u.current_project_id ? String(u.current_project_id) : '';
+
+        html += '<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column;gap:8px">';
+        html += '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+        html += '    <div><b>' + escapeHtml(u.name) + '</b> <span class="mute">(' + escapeHtml(u.role) + ')</span></div>';
+
+        var statusBadge = '';
+        if (!currentPidStr) {
+          statusBadge = '<span style="color:var(--green);font-size:12px;font-weight:600">Current: Bench Pool</span>';
+        } else if (currentPidStr === String(currentProjectId)) {
+          statusBadge = '<span style="color:var(--blue);font-size:12px;font-weight:600">Current: ' + escapeHtml(u.current_project_name || curProjectName) + '</span>';
+        } else {
+          statusBadge = '<span class="warn" style="font-size:12px">Current: ' + escapeHtml(u.current_project_name || ('Project ' + currentPidStr)) + '</span>';
+        }
+        html += '    <div>' + statusBadge + '</div>';
+        html += '  </div>';
+
+        html += '  <div class="mute" style="font-size:12px;display:flex;gap:16px;flex-wrap:wrap">';
+        html += '    <span>Email: <b>' + escapeHtml(u.email || '—') + '</b></span>';
+        html += '    <span>Contact: <b>' + escapeHtml(u.phone || '—') + '</b></span>';
+        html += '  </div>';
+
+        html += '  <form method="post" action="{{ url_for("team_add") }}" class="inline" style="margin-top:4px;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;padding:8px 12px;border:1px solid var(--line);border-radius:6px">';
+        html += '    <input type="hidden" name="csrf" value="' + escapeHtml(csrfToken) + '">';
+        html += '    <input type="hidden" name="user_id" value="' + escapeHtml(u.id) + '">';
+        html += '    <input type="hidden" name="role" value="' + escapeHtml(u.role) + '">';
+
+        html += '    <label class="mute" style="font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">Target Project: ';
+        if (isAdmin) {
+          html += '      <select name="project" class="target-proj-select" data-current-pid="' + escapeHtml(currentPidStr) + '" onchange="updateCardButtonState(this)" style="padding:3px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px">';
+          allProjects.forEach(function(p) {
+            var isSel = String(p.id) === String(currentProjectId) ? ' selected' : '';
+            html += '        <option value="' + escapeHtml(p.id) + '"' + isSel + '>' + escapeHtml(p.name) + '</option>';
+          });
+          html += '      </select>';
+        } else {
+          html += '      <input type="hidden" name="project" value="' + escapeHtml(currentProjectId) + '"><b>' + escapeHtml(curProjectName) + '</b>';
+        }
+        html += '    </label>';
+
+        html += '    <label class="mute" style="font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px">Shift starts: ';
+        html += '      <input type="time" name="shift" value="' + escapeHtml(u.current_shift_start || defaultShift) + '" style="padding:2px 6px;font-size:12px">';
+        html += '    </label>';
+
+        html += '    <button type="submit" class="btn card-action-btn" style="margin-left:auto;font-size:12px;padding:4px 14px"></button>';
+        html += '  </form>';
+
+        html += '</div>';
+      });
+
+      resArea.innerHTML = html;
+
+      // Initialize all buttons in the result cards
+      var selects = resArea.querySelectorAll('.target-proj-select');
+      if (selects.length > 0) {
+        selects.forEach(function(s) {
+          updateCardButtonState(s);
+        });
+      } else {
+        // Non-admin view
+        var forms = resArea.querySelectorAll('form');
+        forms.forEach(function(f) {
+          var btn = f.querySelector('.card-action-btn');
+          var hiddenPidInput = f.querySelector('input[name="project"]');
+          var targetPid = hiddenPidInput ? hiddenPidInput.value : currentProjectId;
+          var curPid = f.closest('div[style]').querySelector('.warn') ? 'other' : '';
+          if (curPid === 'other') {
+            btn.textContent = 'Transfer (Admin Required)';
+            btn.disabled = true;
+            btn.className = 'btn alt card-action-btn';
+          } else {
+            btn.textContent = '+ Assign to Team';
+            btn.disabled = false;
+            btn.className = 'btn card-action-btn';
+          }
+        });
+      }
+    })
+    .catch(function(err) {
+      resArea.innerHTML = '<div class="warn" style="text-align:center;padding:12px">Error querying directory. Please try again.</div>';
+    });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

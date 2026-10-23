@@ -1,0 +1,156 @@
+{% extends "base.html" %}{% block body %}
+<div class="tabs" style="margin-bottom:14px">
+  <a href="{{ url_for('wf_leaves') }}">Leave Applications Waiting</a>
+  <a class="on" href="{{ url_for('wf_leave_report') }}">📊 Leave Audit &amp; Reports</a>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+  <div>
+    <h2 style="margin:0 0 4px">Leave Audit &amp; Management Reports</h2>
+    <p class="mute" style="margin:0">Track capacity shortages, SLA escalations, back-to-back extensions, early resumes, and planned/unplanned distribution.</p>
+  </div>
+  <a class="btn" style="background:#16a34a;border-color:#16a34a;display:inline-flex;align-items:center;gap:6px;font-weight:600" href="{{ url_for('wf_leave_report_xlsx', project=pid, **{'from': f, 'to': t}) }}">
+    <span>📥</span> Download 6-Sheet Excel (.xlsx)
+  </a>
+</div>
+
+<form class="bar" method="get" style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:18px">
+  <label><b>Project:</b>
+    <select name="project" onchange="this.form.submit()">
+      <option value="">All my projects</option>
+      {% for p in projects %}
+      <option value="{{p.id}}" {{ 'selected' if p.id==pid }}>{{p.name}}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label><b>From:</b> <input type="date" name="from" value="{{f}}"></label>
+  <label><b>To:</b> <input type="date" name="to" value="{{t}}"></label>
+  <button type="submit">Filter Range</button>
+  <span class="mute" style="margin-left:auto">Reporting Period: <b>{{f}}</b> to <b>{{t}}</b></span>
+</form>
+
+<div class="kpis">
+  <div class="kpi" style="border-top-color:#dc2626"><span>Capacity short days</span><b style="color:{{ '#dc2626' if kpis['Capacity short days'] else 'inherit' }}">{{ kpis['Capacity short days'] }}</b></div>
+  <div class="kpi" style="border-top-color:#ea580c"><span>SLA missed approvals</span><b style="color:{{ '#ea580c' if kpis['SLA missed approvals'] else 'inherit' }}">{{ kpis['SLA missed approvals'] }}</b></div>
+  <div class="kpi" style="border-top-color:#2563eb"><span>Leave extensions</span><b>{{ kpis['Leave extensions'] }}</b></div>
+  <div class="kpi" style="border-top-color:#16a34a"><span>Early resumes</span><b>{{ kpis['Early resumes'] }}</b></div>
+  <div class="kpi" style="border-top-color:#059669"><span>Total planned days</span><b>{{ kpis['Total planned days'] }}</b></div>
+  <div class="kpi" style="border-top-color:#d97706"><span>Total unplanned days</span><b style="color:{{ '#d97706' if kpis['Total unplanned days'] else 'inherit' }}">{{ kpis['Total unplanned days'] }}</b></div>
+</div>
+
+{# 1. Capacity short table #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:var(--nav);display:flex;justify-content:space-between;align-items:center">
+    <span>1. Days Team Ran Short of Capacity ({{ rows.capacity|length }})</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Date</th><th>Total Team</th><th>Away</th><th>Available</th><th>Minimum Required</th><th>Waiting Approval</th></tr>
+    {% for r in rows.capacity %}
+    <tr style="background:#fee2e2">
+      <td><b>{{ r.project }}</b></td><td>{{ r.day }}</td><td>{{ r.total }}</td><td>{{ r.away }}</td><td><b style="color:#b91c1c">{{ r.available }}</b></td><td>{{ r.minimum }}</td><td>{{ r.pending }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="none">No capacity shortages recorded in this date range.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{# 2. SLA Overdue table #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:#4b5563;display:flex;justify-content:space-between;align-items:center">
+    <span>2. Leave Approvals Not Decided in Time / SLA Misses ({{ rows.late|length }})</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Engineer</th><th>Leave Span</th><th>Original Approver</th><th>Escalated To</th><th>Missed Timestamp</th></tr>
+    {% for r in rows.late %}
+    <tr>
+      <td><b>{{ r.project }}</b></td><td>{{ r.engineer }}</td><td>{{ r.leave }}</td>
+      <td><span class="warn">{{ r.approver }}</span></td>
+      <td><b>{{ r.escalated_to }}</b></td>
+      <td class="mute">{{ r.at }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="none">No SLA misses recorded in this date range. All requests were decided on time.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{# 3. Leave extensions #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:#4b5563;display:flex;justify-content:space-between;align-items:center">
+    <span>3. Leave Extensions / Back-to-Back Applications ({{ rows.ext|length }})</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Engineer</th><th>Original Leave Span</th><th>Extension Span</th><th>Status</th></tr>
+    {% for r in rows.ext %}
+    <tr>
+      <td><b>{{ r.project }}</b></td><td>{{ r.engineer }}</td><td>{{ r.original }}</td><td><b>{{ r.extension }}</b></td>
+      <td>
+        {% if r.status == 'approved' %}<span class="pill Present">Approved</span>
+        {% elif r.status == 'rejected' %}<span class="pill Absent">Rejected</span>
+        {% else %}<span class="pill" style="background:#e67700;color:#fff">{{ r.status|capitalize }}</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="none">No consecutive leave extensions in this period.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{# 4. Early joins #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:#4b5563;display:flex;justify-content:space-between;align-items:center">
+    <span>4. Resumed Duty Before Leave Ended / Early Joins ({{ rows.early|length }})</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Engineer</th><th>Original Leave Span</th><th>Resumed On</th></tr>
+    {% for r in rows.early %}
+    <tr>
+      <td><b>{{ r.project }}</b></td><td>{{ r.engineer }}</td><td>{{ r.leave }}</td><td><span class="pill Present">Joined {{ r.joined }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="none">No early return submissions in this period.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{# 5. Planned vs unplanned #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:#4b5563;display:flex;justify-content:space-between;align-items:center">
+    <span>5. Planned vs Unplanned Leave Days Breakdown ({{ rows.mix|length }} Engineers)</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Engineer</th><th>Planned Days</th><th>Unplanned Days</th><th>Total Leave Days</th><th>Planned %</th></tr>
+    {% for r in rows.mix %}
+    {% set tot = r.planned + r.unplanned %}
+    <tr>
+      <td><b>{{ r.project }}</b></td><td>{{ r.engineer }}</td>
+      <td><b style="color:#059669">{{ r.planned }}</b></td>
+      <td><b style="color:#d97706">{{ r.unplanned }}</b></td>
+      <td><b>{{ tot }}</b></td>
+      <td><span class="mute">{{ (r.planned * 100 // tot) if tot else 0 }}%</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="none">No leave records in this period.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{# 6. Withdraw requests #}
+<div class="sec" style="margin-top:16px">
+  <h2 style="background:#4b5563;display:flex;justify-content:space-between;align-items:center">
+    <span>6. Leaves Asked to Withdraw Due to Capacity ({{ rows.withdraw|length }})</span>
+  </h2>
+  <table>
+    <tr><th>Project</th><th>Engineer</th><th>Leave Span</th><th>Status</th></tr>
+    {% for r in rows.withdraw %}
+    <tr>
+      <td><b>{{ r.project }}</b></td><td>{{ r.engineer }}</td><td>{{ r.leave }}</td>
+      <td><span class="pill" style="background:#d9480f;color:#fff">{{ r.status|capitalize }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="none">No withdrawal requests due to capacity in this period.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

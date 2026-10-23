@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% block body %}
+<div class="tabs" style="margin-bottom:14px">
+  <a class="on" href="{{ url_for('wf_leaves') }}">Leave Applications Waiting ({{pending|length}})</a>
+  <a href="{{ url_for('wf_leave_report') }}">📊 Leave Audit &amp; Reports</a>
+</div>
+
+<h2 style="margin:0 0 4px">Leave applications</h2>
+<p class="mute" style="margin:0 0 14px">Decide within <b>{{hours}} hours</b>; after that it goes one level up the PM chain and the miss is recorded. Applied {{pdays}}+ days ahead = planned. <a href="{{ url_for('wf_leave_report') }}" style="color:var(--blue);font-weight:600;margin-left:6px">View Full Audit Reports &rarr;</a></p>
+<div class="sec"><h2>Waiting ({{pending|length}})</h2><table><tr><th>Engineer</th><th>Project</th><th>Dates</th><th>Days</th><th>Type</th><th>Reason / Cover</th><th>Waiting for</th><th>Decide</th></tr>
+{% for r in pending %}<tr><td>{{r.name}}{% if r.is_extension %}<br><span class="warn">extension of an earlier leave</span>{% endif %}</td><td>{{r.project}}</td><td>{{r.from_date}} to {{r.to_date}}</td><td>{{r.days}}</td>
+<td>{{r.leave_type}}<br><span class="mute">{{r.planned}}</span></td><td class="wrap">{{r.reason or ''}}{% if r.handled_by %}<br><span class="mute" style="color:var(--blue)">Cover: {{r.handled_by}}</span>{% endif %}</td>
+<td>{{ r.assigned_to or '-' }}{% if r.escalations %}<br><span class="warn">escalated {{r.escalations}}x</span>{% endif %}<br><span class="mute">due {{ (r.due_at or '')[:16].replace('T',' ') }}</span>{% if r.status!='pending' %}<br><b>{{ 'Change suggested' if r.status=='modification' else 'Asked to withdraw' }}</b>{% endif %}</td>
+<td>{% if r.capacity_full %}<div class="warn" style="margin-bottom:4px">Team capacity is full on {{ r.cap_days }}. {% if not r.can_approve %}Needs the person above you.{% endif %}</div>{% endif %}
+{% if r.can_manage %}<form method="post" action="{{ url_for('wf_leave_decide') }}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="id" value="{{r.id}}">
+<input name="note" placeholder="Note / reason" maxlength="300">
+<select name="planned"><option value="auto">Planned/Unplanned: as {{r.planned}}</option><option>Planned</option><option>Unplanned</option></select>
+<button name="action" value="approve" {% if not r.can_approve %}disabled title="Capacity is full: needs a higher level"{% endif %}>Approve</button>
+<button class="alt" name="action" value="reject">Reject</button>{% if r.capacity_full %}<button class="alt" name="action" value="withdraw">Ask to withdraw</button>{% endif %}
+<span class="mute">or suggest</span><input type="date" name="sfrom" value="{{r.from_date}}"><input type="date" name="sto" value="{{r.to_date}}"><button class="alt" name="action" value="suggest">Suggest</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="none">Nothing waiting.</td></tr>{% endfor %}</table></div>
+<div class="tabs" style="margin-top:16px">{% for p in projects %}<a class="{{ 'on' if p.id==pid }}" href="{{ url_for('wf_leaves', project=p.id) }}">{{p.name}}</a>{% endfor %}</div>
+<div class="sec"><h2 style="background:var(--nav)">Team capacity, next 30 days</h2><table><tr><th>Date</th><th>Working</th><th>On leave</th><th>Waiting for approval</th><th>Available</th><th>Minimum</th><th>Who</th></tr>
+{% for c in cal %}<tr {% if c.short %}style="background:#ffe3e3"{% endif %}><td>{{c.day}}</td><td>{{c.total}}</td><td>{{c.away}}</td><td>{{c.pending}}</td><td><b>{{c.available}}</b></td><td>{{c.minimum}}</td>
+<td class="wrap">{% if c.names_away %}Away: {{ c.names_away|join(', ') }}{% endif %}{% if c.names_pend %} · Waiting: {{ c.names_pend|join(', ') }}{% endif %}{% if c.short %} <b class="warn">CAPACITY SHORT</b>{% endif %}</td></tr>
+{% else %}<tr><td colspan="7" class="none">No team yet.</td></tr>{% endfor %}</table></div>
+<div class="sec" style="margin-top:16px"><h2 style="background:#555">Decided recently</h2><table><tr><th>Engineer</th><th>Dates</th><th>Type</th><th>Result</th><th>By</th><th>Note</th></tr>
+{% for r in recent %}<tr><td>{{r.name}}</td><td>{{r.from_date}} to {{r.to_date}}{% if r.early_join %}<br><span class="mute">joined early {{r.early_join}}</span>{% endif %}</td><td>{{r.leave_type}} <span class="mute">({{r.planned}})</span></td>
+<td>
+  {% if r.status=='approved' %}
+    <span class="pill Present">Approved</span>
+  {% elif r.status=='rejected' %}
+    <span class="pill Absent">Rejected</span>
+  {% elif r.status=='cancelled' %}
+    <span class="pill" style="background:#868e96;color:#fff">Cancelled</span>
+  {% else %}
+    <span class="pill Leave">{{r.status|capitalize}}</span>
+  {% endif %}
+</td>
+<td>{{r.decided_by or ''}}</td><td class="wrap">{{r.note or ''}}</td></tr>{% else %}<tr><td colspan="6" class="none">Nothing yet.</td></tr>{% endfor %}</table></div>
+{% if adm %}<form method="post" action="{{ url_for('wf_leave_settings') }}" class="bar" style="margin-top:16px"><input type="hidden" name="csrf" value="{{csrf}}">
+<label>Planned if applied at least <input type="number" name="pdays" value="{{pdays}}" min="0" max="60" style="width:70px"> days ahead</label>
+<label>Approve within <input type="number" name="hours" value="{{hours}}" min="1" max="240" style="width:80px"> hours</label><button>Save</button></form>{% endif %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block body %}
+{% macro form(r) %}<form method="post" action="{{ url_for('access_save') }}"><input type="hidden" name="csrf" value="{{csrf}}">
+<p class="inline" style="flex-wrap:wrap"><input type="text" name="email" value="{{r.email}}" type="email" placeholder="Email (as in Keycloak)" {{ 'readonly' if r.email }} required>
+<input type="text" name="name" value="{{r.name or ''}}" placeholder="Name" pattern="{{pat.name}}" title="Letters only">
+<select name="role"><option value="lead" {{ 'selected' if r.role=='lead' }}>TL/PM - fills attendance for own projects</option><option value="manager" {{ 'selected' if r.role=='manager' }}>Manager - view only</option></select>
+<select name="scope"><option value="selected">Selected projects (tick below)</option><option value="all" {{ 'selected' if r.all_projects }}>All projects (managers only)</option></select></p>
+<p>{% for p in projects %}<label style="display:inline-block;margin:0 14px 4px 0"><input type="checkbox" name="projects" value="{{p.id}}" {{ 'checked' if p.id in r.pids }}> {{p.name}}</label>{% else %}<span class="mute">No projects yet.</span>{% endfor %}</p>
+<p><button class="{{ 'alt' if r.email }}" name="action" value="save">{{ 'Save' if r.email else 'Give access' }}</button>{% if r.email %} <button class="alt" name="action" value="remove">Remove access</button>{% endif %}</p></form>{% endmacro %}
+<div class="sec"><h2 style="background:var(--nav)">Give access</h2><div style="padding:12px">{{ form({'email':'','pids':[]}) }}
+<p class="mute">Ticking a main project also gives its sub-projects. TL/PMs are automatically synchronized into the team roster of their assigned projects for daily attendance tracking. Admins ({{ admins|join(', ') }}) are set in the settings file and can do everything.</p></div></div>
+{% for r in rows %}<div class="sec"><h2 style="background:{{ 'var(--blue)' if r.role=='manager' else 'var(--green)' }}">{{ r.name or r.email }} · {{ 'Manager' if r.role=='manager' else 'TL/PM' }}{% if r.all_projects %} · all projects{% endif %}</h2><div style="padding:12px">{{ form(r) }}</div></div>{% endfor %}
+{% endblock %}

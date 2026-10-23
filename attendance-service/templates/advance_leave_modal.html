@@ -1,0 +1,456 @@
+{% if is_admin or can_edit_proj %}
+<!-- Unified Leave Management Modal -->
+<div id="advanceLeaveModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+  <div style="background:#fff;border-radius:10px;box-shadow:0 16px 36px rgba(0,0,0,0.28);width:min(1180px, 96vw);max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:24px;position:relative;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+    
+    <!-- Modal Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px">
+      <div>
+        <h3 style="margin:0;font-size:18px;color:var(--nav);font-weight:600">
+          Leave Management
+        </h3>
+        <span class="mute" style="font-size:12px">
+          Project: <strong>{% set cur_p = projects|selectattr('id','equalto',pid)|first %}{{ cur_p.name if cur_p else pid }}</strong>
+        </span>
+      </div>
+      <button type="button" onclick="closeAdvanceLeaveModal()" style="background:none;border:none;font-size:24px;line-height:1;color:var(--mute);cursor:pointer;padding:0 4px">&times;</button>
+    </div>
+
+    <!-- Modal Tabs -->
+    <div style="display:flex;gap:8px;border-bottom:2px solid #eef2f6;padding-bottom:2px">
+      <button type="button" id="tabBtnUpcoming" onclick="switchLeaveTab('upcoming')" style="background:none;border:none;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#475467;display:inline-flex;align-items:center;gap:6px">
+        Upcoming & Active Leaves
+        <span style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:700">{{ upcoming_leaves|length if upcoming_leaves else 0 }}</span>
+      </button>
+      <button type="button" id="tabBtnApply" onclick="switchLeaveTab('apply')" style="background:none;border:none;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#475467;display:inline-flex;align-items:center;gap:6px">
+        Apply Advance Leave
+      </button>
+    </div>
+
+    <!-- TAB 1: Upcoming & Active Leaves -->
+    <div id="tabContentUpcoming" style="display:block">
+      <!-- Edit/Modify Box (Hidden by default, shown when Modify is clicked) -->
+      <div id="modifyLeaveCard" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:8px">
+          <h4 style="margin:0;font-size:14px;color:#1e293b;font-weight:600">
+            Modify Planned Leave for <span id="mod_user_name_display" style="color:var(--blue)"></span>
+          </h4>
+          <button type="button" onclick="closeModifyForm()" style="background:none;border:none;font-size:18px;color:#64748b;cursor:pointer">&times;</button>
+        </div>
+
+        <form method="post" action="{{ url_for('leave_modify') }}">
+          <input type="hidden" name="csrf" value="{{csrf}}">
+          <input type="hidden" name="project" value="{{pid}}">
+          {% if next_url %}<input type="hidden" name="next" value="{{next_url}}">{% endif %}
+          <input type="hidden" name="user_id" id="mod_user_id">
+          <input type="hidden" name="old_from_date" id="mod_old_from_date">
+          <input type="hidden" name="old_to_date" id="mod_old_to_date">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr 1.2fr;gap:12px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">From Date *</label>
+              <input type="date" name="from_date" id="mod_from_date" required style="width:100%;height:34px;padding:4px 8px;box-sizing:border-box" onchange="calcModDays()">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">To Date *</label>
+              <input type="date" name="to_date" id="mod_to_date" required style="width:100%;height:34px;padding:4px 8px;box-sizing:border-box" onchange="calcModDays()">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Leave Type *</label>
+              <select name="leave_type" id="mod_leave_type" required style="width:100%;height:34px">
+                {% for t in leave_types %}
+                <option value="{{t}}">{{t}}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Task Handled By (Cover)</label>
+              <select name="cover" id="mod_cover" style="width:100%;height:34px">
+                <option value="">-- None / Self-Managed --</option>
+                {% for m in covers %}
+                <option value="{{m.name}}">{{m.name}}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.8fr 1fr auto;gap:12px;align-items:center;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Remarks / Reason</label>
+              <input type="text" name="remarks" id="mod_remarks" placeholder="e.g. Rescheduled family event" maxlength="300" style="width:100%;height:34px;padding:4px 8px;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Planned / Unplanned</label>
+              <select name="planned" id="mod_planned" style="width:100%;height:34px">
+                <option value="Planned">Planned</option>
+                <option value="Unplanned">Unplanned</option>
+              </select>
+            </div>
+            <div style="padding-top:16px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap">
+                <input type="checkbox" name="skip_weekends" id="mod_skip_weekends" value="1" checked onchange="calcModDays()">
+                <span>Skip weekly offs</span>
+              </label>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:8px">
+            <div id="mod_preview_text" style="font-size:12px;color:var(--mute);font-weight:500">Calculating...</div>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn alt" style="font-size:12px;padding:5px 12px" onclick="closeModifyForm()">Cancel</button>
+              <button type="submit" id="mod_submit_btn" style="font-size:12px;padding:5px 14px">Save Changes</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Upcoming Leaves Table (No scrollbars, 100% width with fixed proportions) -->
+      {% if upcoming_leaves %}
+      <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;table-layout:fixed">
+          <colgroup>
+            <col style="width:20%">
+            <col style="width:17%">
+            <col style="width:10%">
+            <col style="width:14%">
+            <col style="width:14%">
+            <col style="width:13%">
+            <col style="width:12%">
+          </colgroup>
+          <thead style="background:#f8fafc;border-bottom:1px solid var(--line)">
+            <tr>
+              <th style="padding:10px 12px;color:#475467;font-weight:600">Engineer</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600">Leave Period</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600;text-align:center">Duration</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600">Leave Details</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600">Handled By</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600">Remarks</th>
+              <th style="padding:10px 12px;color:#475467;font-weight:600;text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in upcoming_leaves %}
+            <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='#fff'">
+              <td style="padding:10px 12px;word-break:break-word">
+                <strong>{{ l.user_name }}</strong>
+                {% if l.role %}<br><span class="mute" style="font-size:11px">{{ l.role }}</span>{% endif %}
+              </td>
+              <td style="padding:10px 12px;white-space:nowrap;font-size:12px">
+                <strong>{{ l.from_date }}</strong>
+                {% if l.from_date != l.to_date %}
+                <span class="mute">→</span> <strong>{{ l.to_date }}</strong>
+                {% endif %}
+              </td>
+              <td style="padding:10px 12px;text-align:center;white-space:nowrap">
+                <span style="background:#e8f4fd;color:#0366d6;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700">
+                  {{ l.working_days }} day{{ 's' if l.working_days != 1 else '' }}
+                </span>
+              </td>
+              <td style="padding:10px 12px;white-space:nowrap;font-size:12px">
+                <span style="font-weight:600">{{ l.leave_type }}</span>
+                {% if l.planned %}<br><span class="mute" style="font-size:11px">({{ l.planned }})</span>{% endif %}
+              </td>
+              <td style="padding:10px 12px;white-space:nowrap;font-size:12px">
+                {% if l.handled_by %}
+                <span style="color:#0f766e;font-weight:500">{{ l.handled_by }}</span>
+                {% else %}
+                <span class="mute">-</span>
+                {% endif %}
+              </td>
+              <td style="padding:10px 12px;color:#555;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ l.remarks }}">
+                {{ l.remarks if l.remarks else '-' }}
+              </td>
+              <td style="padding:10px 12px;text-align:right;white-space:nowrap">
+                <div style="display:inline-flex;gap:6px">
+                  <button type="button" class="btn alt" style="font-size:11px;padding:3px 8px"
+                          onclick='openModifyForm({{ l|tojson|safe }})'>
+                    Modify
+                  </button>
+                  <form method="post" action="{{ url_for('leave_cancel') }}" style="display:inline" onsubmit="return confirm('Cancel planned leave for {{ l.user_name }} ({{ l.from_date }}{% if l.from_date != l.to_date %} to {{ l.to_date }}{% endif %})?');">
+                    <input type="hidden" name="csrf" value="{{csrf}}">
+                    <input type="hidden" name="project" value="{{pid}}">
+                    {% if next_url %}<input type="hidden" name="next" value="{{next_url}}">{% endif %}
+                    <input type="hidden" name="user_id" value="{{l.user_id}}">
+                    <input type="hidden" name="from_date" value="{{l.from_date}}">
+                    <input type="hidden" name="to_date" value="{{l.to_date}}">
+                    <button type="submit" class="btn alt" style="font-size:11px;padding:3px 8px;color:#d9534f;border-color:#fca5a5" title="Revoke planned leave">
+                      Cancel
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:36px 16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px">
+        <div style="font-size:14px;font-weight:600;color:#334155;margin-bottom:4px">No upcoming planned leaves</div>
+        <p class="mute" style="font-size:12px;margin:0 0 14px">There are currently no advance leaves scheduled for this project.</p>
+        <button type="button" class="btn" style="font-size:12px;padding:6px 14px" onclick="switchLeaveTab('apply')">
+          Apply Advance Leave
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- TAB 2: Apply Advance Leave (Variation A - Tabular Input Row) -->
+    <div id="tabContentApply" style="display:none">
+      <div style="padding:18px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;margin:0">
+        <div style="font-size:13px;font-weight:600;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+          <span>Schedule New Planned Leave</span>
+          <span class="mute" style="font-weight:normal;font-size:11px">· enter details horizontally below</span>
+        </div>
+
+        <form method="post" action="{{ url_for('leave_apply_advance') }}">
+          <input type="hidden" name="csrf" value="{{csrf}}">
+          <input type="hidden" name="project" value="{{pid}}">
+          {% if next_url %}<input type="hidden" name="next" value="{{next_url}}">{% endif %}
+
+          <!-- Row 1: Engineer, From Date, To Date, Leave Type, Cover Person -->
+          <div style="display:grid;grid-template-columns:1.6fr 1.1fr 1.1fr 1.2fr 1.3fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label for="adv_user_id" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Team Member *</label>
+              <select name="user_id" id="adv_user_id" required style="width:100%;height:36px" onchange="updateAdvCoverOptions()">
+                <option value="">-- Choose Member --</option>
+                {% for m in members %}
+                <option value="{{m.id}}" data-name="{{m.name}}">{{m.name}}{% if m.role %} ({{m.role}}){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="adv_from_date" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">From Date *</label>
+              <input type="date" name="from_date" id="adv_from_date" value="{{day if day and (day >= today or is_admin) else today}}" {% if not is_admin %}min="{{today}}"{% endif %} required style="width:100%;height:36px;padding:4px 8px;box-sizing:border-box" onchange="calcAdvDays()">
+            </div>
+            <div>
+              <label for="adv_to_date" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">To Date *</label>
+              <input type="date" name="to_date" id="adv_to_date" value="{{day if day and (day >= today or is_admin) else today}}" {% if not is_admin %}min="{{today}}"{% endif %} required style="width:100%;height:36px;padding:4px 8px;box-sizing:border-box" onchange="calcAdvDays()">
+            </div>
+            <div>
+              <label for="adv_leave_type" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Leave Type *</label>
+              <select name="leave_type" id="adv_leave_type" required style="width:100%;height:36px">
+                {% for t in leave_types %}
+                <option value="{{t}}" {{ 'selected' if t=='Casual Leave' }}>{{t}}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="adv_cover" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Task Handled By (Cover)</label>
+              <select name="cover" id="adv_cover" style="width:100%;height:36px">
+                <option value="">-- None / Self-Managed --</option>
+                {% for m in covers %}
+                <option value="{{m.name}}">{{m.name}}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 2: Remarks, Planned, Skip Weekends, Submit Button -->
+          <div style="display:grid;grid-template-columns:2fr 1fr 1.3fr auto;gap:12px;align-items:center;margin-bottom:8px">
+            <div>
+              <label for="adv_remarks" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Remarks / Reason</label>
+              <input type="text" name="remarks" id="adv_remarks" placeholder="e.g. Approved personal leave" maxlength="300" style="width:100%;height:36px;padding:4px 8px;box-sizing:border-box">
+            </div>
+            <div>
+              <label for="adv_planned" style="display:block;font-size:11px;font-weight:600;color:#475467;margin-bottom:4px">Planned / Unplanned</label>
+              <select name="planned" id="adv_planned" style="width:100%;height:36px">
+                <option value="Planned" selected>Planned</option>
+                <option value="Unplanned">Unplanned</option>
+              </select>
+            </div>
+            <div style="padding-top:16px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap">
+                <input type="checkbox" name="skip_weekends" id="adv_skip_weekends" value="1" checked onchange="calcAdvDays()">
+                <span><strong>Skip weekly offs (Sat/Sun)</strong></span>
+              </label>
+            </div>
+            <div style="padding-top:16px">
+              <button type="submit" id="adv_submit_btn" style="height:36px;white-space:nowrap;padding:0 20px;font-weight:600">
+                Apply Advance Leave
+              </button>
+            </div>
+          </div>
+
+          <!-- Real-time calculation preview -->
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-top:10px">
+            <div id="adv_preview_text" style="font-size:12px;color:var(--mute);font-weight:500">
+              Select dates to preview duration.
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--line);padding-top:12px">
+      <button type="button" class="btn alt" style="font-size:12px;padding:5px 16px" onclick="closeAdvanceLeaveModal()">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let curActiveLeaveTab = 'upcoming';
+
+function switchLeaveTab(tab) {
+  curActiveLeaveTab = tab;
+  const btnUp = document.getElementById('tabBtnUpcoming');
+  const btnApp = document.getElementById('tabBtnApply');
+  const conUp = document.getElementById('tabContentUpcoming');
+  const conApp = document.getElementById('tabContentApply');
+  if (!btnUp || !btnApp || !conUp || !conApp) return;
+
+  if (tab === 'upcoming') {
+    btnUp.style.borderBottomColor = 'var(--blue)';
+    btnUp.style.color = 'var(--blue)';
+    btnApp.style.borderBottomColor = 'transparent';
+    btnApp.style.color = '#475467';
+    conUp.style.display = 'block';
+    conApp.style.display = 'none';
+  } else {
+    btnApp.style.borderBottomColor = 'var(--blue)';
+    btnApp.style.color = 'var(--blue)';
+    btnUp.style.borderBottomColor = 'transparent';
+    btnUp.style.color = '#475467';
+    conApp.style.display = 'block';
+    conUp.style.display = 'none';
+    calcAdvDays();
+  }
+}
+
+function openAdvanceLeaveModal(defaultTab) {
+  const m = document.getElementById('advanceLeaveModal');
+  if (m) {
+    m.style.display = 'flex';
+    switchLeaveTab(defaultTab || 'upcoming');
+  }
+}
+
+function closeAdvanceLeaveModal() {
+  const m = document.getElementById('advanceLeaveModal');
+  if (m) m.style.display = 'none';
+  closeModifyForm();
+}
+
+window.addEventListener('click', function(e) {
+  const m = document.getElementById('advanceLeaveModal');
+  if (e.target === m) closeAdvanceLeaveModal();
+});
+
+function updateAdvCoverOptions() {
+  const selMember = document.getElementById('adv_user_id');
+  const selCover = document.getElementById('adv_cover');
+  if (!selMember || !selCover) return;
+  const chosenOpt = selMember.options[selMember.selectedIndex];
+  const chosenName = chosenOpt ? chosenOpt.getAttribute('data-name') : '';
+  for (let opt of selCover.options) {
+    if (!opt.value) continue;
+    opt.disabled = (opt.value === chosenName);
+    if (opt.value === chosenName && selCover.value === chosenName) {
+      selCover.value = '';
+    }
+  }
+}
+
+function calcDuration(fVal, tVal, skipOff) {
+  if (!fVal || !tVal) return { valid: false, msg: 'Select dates to calculate duration.' };
+  const fDate = new Date(fVal + 'T00:00:00');
+  const tDate = new Date(tVal + 'T00:00:00');
+
+  if (fDate > tDate) {
+    return { valid: false, error: true, msg: 'From Date cannot be after To Date.' };
+  }
+
+  let totalDays = 0;
+  let skippedDays = 0;
+  let cur = new Date(fDate);
+  while (cur <= tDate) {
+    const dayOfWeek = cur.getDay(); // 0 is Sun, 6 is Sat
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    if (skipOff && isWeekend) {
+      skippedDays++;
+    } else {
+      totalDays++;
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  if (totalDays === 0) {
+    return { valid: true, zero: true, msg: 'All dates in this range fall on weekends (0 working days).' };
+  }
+  let msg = `Will apply to <strong>${totalDays} working day${totalDays > 1 ? 's' : ''}</strong>`;
+  if (skippedDays > 0) {
+    msg += ` (${skippedDays} weekend day${skippedDays > 1 ? 's' : ''} skipped)`;
+  }
+  return { valid: true, total: totalDays, skipped: skippedDays, msg: msg };
+}
+
+function calcAdvDays() {
+  const fEl = document.getElementById('adv_from_date');
+  const tEl = document.getElementById('adv_to_date');
+  const wEl = document.getElementById('adv_skip_weekends');
+  const prevEl = document.getElementById('adv_preview_text');
+  const subBtn = document.getElementById('adv_submit_btn');
+  if (!fEl || !tEl || !prevEl || !subBtn) return;
+
+  const res = calcDuration(fEl.value, tEl.value, wEl ? wEl.checked : true);
+  if (!res.valid) {
+    prevEl.innerHTML = `<span style="${res.error ? 'color:var(--red);font-weight:600' : 'color:var(--mute)'}">${res.msg}</span>`;
+    subBtn.disabled = Boolean(res.error);
+    return;
+  }
+  subBtn.disabled = Boolean(res.zero);
+  prevEl.innerHTML = res.zero ? `<span style="color:var(--orange);font-weight:600">${res.msg}</span>` : res.msg;
+}
+
+function openModifyForm(leaveData) {
+  const card = document.getElementById('modifyLeaveCard');
+  if (!card) return;
+
+  document.getElementById('mod_user_name_display').textContent = leaveData.user_name;
+  document.getElementById('mod_user_id').value = leaveData.user_id;
+  document.getElementById('mod_old_from_date').value = leaveData.from_date;
+  document.getElementById('mod_old_to_date').value = leaveData.to_date;
+  document.getElementById('mod_from_date').value = leaveData.from_date;
+  document.getElementById('mod_to_date').value = leaveData.to_date;
+  document.getElementById('mod_leave_type').value = leaveData.leave_type;
+  document.getElementById('mod_planned').value = leaveData.planned || 'Planned';
+  document.getElementById('mod_cover').value = leaveData.handled_by || '';
+  document.getElementById('mod_remarks').value = leaveData.remarks || '';
+  document.getElementById('mod_skip_weekends').checked = true;
+
+  card.style.display = 'block';
+  calcModDays();
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeModifyForm() {
+  const card = document.getElementById('modifyLeaveCard');
+  if (card) card.style.display = 'none';
+}
+
+function calcModDays() {
+  const fEl = document.getElementById('mod_from_date');
+  const tEl = document.getElementById('mod_to_date');
+  const wEl = document.getElementById('mod_skip_weekends');
+  const prevEl = document.getElementById('mod_preview_text');
+  const subBtn = document.getElementById('mod_submit_btn');
+  if (!fEl || !tEl || !prevEl || !subBtn) return;
+
+  const res = calcDuration(fEl.value, tEl.value, wEl ? wEl.checked : true);
+  if (!res.valid) {
+    prevEl.innerHTML = `<span style="${res.error ? 'color:var(--red);font-weight:600' : 'color:var(--mute)'}">${res.msg}</span>`;
+    subBtn.disabled = Boolean(res.error);
+    return;
+  }
+  subBtn.disabled = Boolean(res.zero);
+  prevEl.innerHTML = res.zero ? `<span style="color:var(--orange);font-weight:600">${res.msg}</span>` : res.msg;
+}
+
+// Initialize active tab indicator
+document.addEventListener('DOMContentLoaded', function() {
+  switchLeaveTab('upcoming');
+});
+</script>
+{% endif %}

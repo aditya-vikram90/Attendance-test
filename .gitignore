@@ -1,0 +1,39 @@
+# Backups and SQL dumps
+backups/
+*.sql
+!db/migrations/*.sql
+*.sql.bak
+*.bak
+
+# Archives
+archives/
+*.zip
+*.tar.gz
+
+# Environment & credentials
+.env
+*.env
+!attendance-service/deploy/attendance.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Maven
+target/
+keycloak-spi/target/
+local-replica/dumps/
+local-replica/providers/*.jar

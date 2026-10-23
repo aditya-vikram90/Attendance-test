@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block body %}
+<form class="bar" method="get"><input type="hidden" name="project" value="{{pid}}">
+<label>Date <input type="date" name="date" value="{{day}}" onchange="this.form.submit()"></label>
+<span class="mute">What the engineers' phones recorded. The app fills a time only when the sheet is empty; a time you enter yourself is never replaced.</span></form>
+<div class="tabs">{% for p in projects %}<a class="{{ 'on' if p.id==pid }}" href="{{ url_for('review', date=day, project=p.id) }}">{{p.name}}</a>{% endfor %}</div>
+<div class="card"><table><tr><th>Engineer</th><th>Phone IN</th><th>Phone OUT</th><th>Sheet IN</th><th>Sheet OUT</th><th>Went out</th><th>Time out</th><th>Trust</th><th></th></tr>
+{% for x in rows %}<tr><td>{{x.m.name}}</td>
+<td>{{ x.a.app_in if x.a and x.a.app_in else '-' }}</td><td>{{ x.a.app_out if x.a and x.a.app_out else '-' }}</td>
+<td>{{ x.r.in_time or '-' }}</td><td>{{ x.r.out_time or '-' }}{% if x.r.updated_by == 'app' %} <span class="mute">(app)</span>{% endif %}</td>
+<td>{{ x.a.exits if x.a else 0 }}</td><td>{{ x.a.break_min if x.a else 0 }} min</td>
+<td>{% if x.a and x.a.low_trust %}<span class="warn">{{x.a.low_trust}} low</span> {% endif %}{% if x.bad %}<span class="warn">{{x.bad}} not counted</span>{% endif %}{% if not (x.a and x.a.low_trust) and not x.bad %}<span class="mute">ok</span>{% endif %}</td>
+<td>{% if editable and x.diff %}<form method="post" action="{{ url_for('review_accept') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="project" value="{{pid}}"><input type="hidden" name="user" value="{{x.m.id}}"><input type="hidden" name="date" value="{{day}}"><button class="alt">Use phone times</button></form>{% endif %}
+{% if x.evs %}<details class="act"><summary>{{x.evs|length}} event{{ '' if x.evs|length==1 else 's' }}</summary><table>
+{% for e in x.evs %}<tr><td>{{e.time}}</td><td>{{e.kind}}</td><td>{{e.trust}}</td><td class="mute">{{ e.reasons or '' }}{% if e.distance_m is not none %} · {{ e.distance_m|round|int }} m from centre{% endif %}</td></tr>{% endfor %}</table></details>{% endif %}</td></tr>
+{% else %}<tr><td colspan="9" class="none">No team members in this project yet.</td></tr>{% endfor %}</table></div>
+{% if not sites %}<p class="mute">This project has no check-in site yet. Add one under <a href="{{ url_for('projects_page') }}">Projects</a>.</p>{% endif %}
+{% if disputes %}<div class="sec" style="margin-top:16px"><h2 style="background:var(--orange)">Engineer disputes</h2><table>
+{% for d in disputes %}<tr><td>{{d.email}}</td><td class="wrap">{{d.note}}</td><td>{% if editable %}<form method="post" action="{{ url_for('review_dispute') }}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="project" value="{{pid}}"><input type="hidden" name="id" value="{{d.id}}"><input type="hidden" name="date" value="{{day}}"><button class="alt">Mark resolved</button></form>{% endif %}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if devices %}<div class="sec" style="margin-top:16px"><h2 style="background:var(--blue)">New phones waiting for approval</h2><table>
+{% for d in devices %}<tr><td>{{d.email}}</td><td>{{d.pending_model or 'unknown phone'}}</td><td>{% if editable %}<form method="post" action="{{ url_for('review_device') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="project" value="{{pid}}"><input type="hidden" name="email" value="{{d.email}}"><input type="hidden" name="date" value="{{day}}">
+<button name="action" value="approve">Approve</button> <button class="alt" name="action" value="refuse">Refuse</button></form>{% endif %}</td></tr>{% endfor %}</table></div>{% endif %}
+{% endblock %}

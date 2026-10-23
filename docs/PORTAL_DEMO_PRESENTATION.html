@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Management Portal - Demonstration Deck</title>
+  <style>
+    :root {
+      --primary: #1f3864;
+      --primary-dark: #142544;
+      --accent: #2e75b6;
+      --accent-light: #eaf2fa;
+      --bg: #f4f6f9;
+      --card-bg: #ffffff;
+      --text: #1c2533;
+      --text-mute: #596780;
+      --border: #d9dee7;
+      --table-header: #eef2f6;
+      --table-row-border: #edf2f7;
+      --green: #2e7d32;
+      --green-light: #e8f5e9;
+      --amber: #bf8f00;
+      --amber-light: #fff8e1;
+      --red: #c00000;
+      --red-light: #ffebee;
+      --radius: 12px;
+      --shadow: 0 10px 30px rgba(31, 56, 100, 0.08);
+      --flow-box-bg: #ffffff;
+      --flow-box-border: #cbd5e1;
+    }
+
+    [data-theme="dark"] {
+      --primary: #8ab4f8;
+      --primary-dark: #aecbfa;
+      --accent: #6ba6e0;
+      --accent-light: #1e293b;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f1f5f9;
+      --text-mute: #94a3b8;
+      --border: #334155;
+      --table-header: #0f172a;
+      --table-row-border: #334155;
+      --green: #4ade80;
+      --green-light: rgba(74, 222, 128, 0.15);
+      --amber: #fbbf24;
+      --amber-light: rgba(251, 191, 36, 0.15);
+      --red: #f87171;
+      --red-light: rgba(248, 113, 113, 0.15);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      --flow-box-bg: #0f172a;
+      --flow-box-border: #475569;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: background-color 0.25s, color 0.25s, border-color 0.25s;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Top Progress Bar */
+    #progress-container {
+      width: 100%;
+      height: 5px;
+      background: var(--border);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Top Header */
+    header {
+      padding: 12px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 16px;
+      letter-spacing: -0.3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-primary { background: var(--accent-light); color: var(--accent); }
+    .badge-success { background: var(--green-light); color: var(--green); }
+    .badge-warning { background: var(--amber-light); color: var(--amber); }
+
+    /* Clickable URL Badge */
+    .url-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .url-badge:hover {
+      background: var(--accent);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .url-badge svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .slide-counter {
+      font-size: 13.5px;
+      color: var(--text-mute);
+      font-weight: 600;
+      background: var(--bg);
+      padding: 4px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* Theme Toggle Button */
+    .theme-toggle-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--accent);
+    }
+
+    /* Slides Deck Container */
+    #deck {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .slide {
+      position: absolute;
+      width: 94%;
+      max-width: 1200px;
+      height: 85vh;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 28px 42px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(20px) scale(0.98);
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Slide Header Layout */
+    .slide-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .slide-tag {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent);
+    }
+
+    .slide-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+      line-height: 1.25;
+      letter-spacing: -0.4px;
+    }
+
+    .slide-subtitle {
+      font-size: 13px;
+      color: var(--text-mute);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    /* Card Components */
+    .feature-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .feature-card.highlight {
+      border-left: 4px solid var(--accent);
+      background: var(--card-bg);
+    }
+
+    .feature-card.success {
+      border-left: 4px solid var(--green);
+      background: var(--card-bg);
+    }
+
+    .feature-card.warning {
+      border-left: 4px solid var(--amber);
+      background: var(--card-bg);
+    }
+
+    .feature-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: var(--text-mute);
+      line-height: 1.4;
+    }
+
+    /* Tables */
+    .table-container {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--card-bg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th {
+      background: var(--table-header);
+      color: var(--primary);
+      text-align: left;
+      padding: 8px 10px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--table-row-border);
+      color: var(--text);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Code & Badges */
+    .code-pill {
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .pill-P { background: var(--green-light); color: var(--green); }
+    .pill-A { background: var(--red-light); color: var(--red); }
+    .pill-L { background: var(--accent-light); color: var(--accent); }
+    .pill-HD { background: #fff3e0; color: #e65100; }
+    .pill-W { background: #ede7f6; color: #512da8; }
+    .pill-LT { background: var(--amber-light); color: var(--amber); }
+
+    .tech-pill {
+      display: inline-block;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    /* Complete End-to-End Architecture Flow Styles */
+    .complete-arch-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .flow-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .flow-row-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .flow-card {
+      background: var(--flow-box-bg);
+      border: 1px solid var(--flow-box-border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .flow-card.auth-step {
+      border-top: 3px solid #7c3aed;
+      background: rgba(124, 58, 237, 0.04);
+    }
+
+    .flow-card.portal-step {
+      border-top: 3px solid var(--accent);
+    }
+
+    .flow-card-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .flow-num {
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9.5px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .flow-num.purple { background: #7c3aed; }
+
+    .flow-card-desc {
+      font-size: 10.5px;
+      color: var(--text-mute);
+      line-height: 1.3;
+    }
+
+    .flow-roles-storage-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .role-storage-card {
+      background: var(--flow-box-bg);
+      border: 1px solid var(--flow-box-border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .role-storage-card.engineer { border-top: 3px solid var(--green); }
+    .role-storage-card.lead { border-top: 3px solid var(--accent); }
+    .role-storage-card.admin { border-top: 3px solid var(--amber); }
+    .role-storage-card.storage { border-top: 3px solid #0284c7; }
+
+    .role-storage-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .role-storage-desc {
+      font-size: 10.5px;
+      color: var(--text-mute);
+      line-height: 1.3;
+    }
+
+    /* Architecture Footer Bar: Tech Stack Summary */
+    .tech-stack-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .tech-summary-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+
+    .tech-summary-item b {
+      color: var(--primary);
+      display: block;
+      margin-bottom: 2px;
+      font-size: 11.5px;
+    }
+
+    /* Steps Layout */
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+
+    .step-number {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .step-text h4 {
+      font-size: 13px;
+      color: var(--primary);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-text p {
+      font-size: 12px;
+      color: var(--text-mute);
+      line-height: 1.3;
+    }
+
+    /* Navigation Footer */
+    footer {
+      padding: 12px 36px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .nav-hints {
+      font-size: 12px;
+      color: var(--text-mute);
+      display: flex;
+      gap: 14px;
+    }
+
+    .kbd {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .btn-nav {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    [data-theme="dark"] .btn-nav {
+      background: var(--accent);
+      color: #0f172a;
+    }
+
+    .btn-nav:hover { background: var(--primary-dark); }
+    .btn-nav.alt { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-nav.alt:hover { border-color: var(--accent); }
+    .btn-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Print Styles */
+    @media print {
+      body { overflow: visible; height: auto; }
+      #progress-container, header, footer { display: none !important; }
+      #deck { padding: 0; display: block; }
+      .slide {
+        position: relative !important; opacity: 1 !important; transform: none !important;
+        width: 100% !important; height: 100vh !important; page-break-after: always;
+        border: none !important; box-shadow: none !important; padding: 24px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Progress Bar -->
+  <div id="progress-container"><div id="progress-bar"></div></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Attendance Management Portal</span>
+      <span class="badge badge-primary">Demonstration Deck</span>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span> <span id="theme-label">Dark Mode</span>
+      </button>
+      <div class="slide-counter" id="slide-indicator">Slide 1 of 13</div>
+    </div>
+  </header>
+
+  <!-- Slide Deck -->
+  <main id="deck">
+
+    <!-- SLIDE 1: Title & Overview -->
+    <section class="slide active">
+      <div class="slide-tag">Portal Purpose & Overview</div>
+      <h1 class="slide-title" style="font-size:30px;margin-top:6px">Attendance Management Portal</h1>
+      <p class="slide-subtitle" style="font-size:15px">One central place to manage cross-project team staffing, mark daily shift attendance, and download executive reports.</p>
+      
+      <div class="slide-content" style="justify-content:center">
+        <div class="feature-card highlight" style="border-left:4px solid var(--accent);margin-bottom:8px">
+          <div class="feature-title" style="font-size:13.5px;color:var(--primary)">Why We Built It</div>
+          <div class="feature-desc" style="font-size:12px;line-height:1.45">
+            Engineers work across multiple client projects. Management previously had no single, reliable view of who is absent without info, who is on leave with task cover, who arrived late, and who is falling short of the 9-hour shift. Attendance was isolated in separate per-project spreadsheets with no history and no trends.<br>
+            The portal provides <b>one daily operational record</b> for every team filled by the TL/PM, with automatic checks, an executive daily summary for management, and long-term trend analysis.
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:2px">
+          <div class="feature-card highlight">
+            <div class="feature-title">1. Central User Directory</div>
+            <div class="feature-desc">Loads employees automatically from company Keycloak SSO. Search anyone easily and move engineers between projects in 1 click.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">2. Daily Shifts & Leaves</div>
+            <div class="feature-desc">Mark project attendance quickly, track exact check-in and check-out times, WFH, half-days, and pre-fill approved multi-day leaves automatically.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">3. Reports, Trends & Excel Downloads</div>
+            <div class="feature-desc">See daily summaries, review attendance trends (7 to 365 days or custom dates) with instant engineer search, and export formatted Excel sheets in 1 click.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: Problem Statement & Scope -->
+    <section class="slide">
+      <div class="slide-tag">Why We Built This</div>
+      <h2 class="slide-title">Common Problems in Team Attendance</h2>
+      <p class="slide-subtitle">Managing teams across multiple projects using spreadsheets creates confusion and wasted time.</p>
+      
+      <div class="slide-content">
+        <div class="feature-card" style="border-left:4px solid var(--red)">
+          <div class="feature-title" style="color:var(--red)">1. No Proper Tracking of Check-In & Check-Out Times</div>
+          <div class="feature-desc">Engineers check in and out at different times without accurate time records. Without timestamps, project leads cannot track punctuality, late arrivals, or total hours worked properly.</div>
+        </div>
+
+        <div class="grid-2" style="margin-top:4px">
+          <div class="feature-card" style="border-left:4px solid var(--amber)">
+            <div class="feature-title" style="color:var(--amber)">2. Scattered Spreadsheets & Hidden Bench Pool</div>
+            <div class="feature-desc">Project leads kept isolated files. Management could not easily see available bench engineers for new project staffing.</div>
+          </div>
+          <div class="feature-card" style="border-left:4px solid var(--accent)">
+            <div class="feature-title" style="color:var(--accent)">3. Repeating the Same Leave Entry Every Day</div>
+            <div class="feature-desc">When an engineer took an approved 5-day leave, the manager had to open the sheet and type "Leave" every single morning.</div>
+          </div>
+          <div class="feature-card" style="border-left:4px solid #6c757d">
+            <div class="feature-title" style="color:var(--text)">4. Missing Long-Term Attendance Trends</div>
+            <div class="feature-desc">Management had no simple way to spot repeated late arrivals or compare team punctuality over months or weekdays.</div>
+          </div>
+          <div class="feature-card" style="border-left:4px solid #0284c7">
+            <div class="feature-title" style="color:#0284c7">5. Confusion Over Client Site vs. Head Office Duty</div>
+            <div class="feature-desc">When engineers visited the Head Office for sprint reviews or IT setups, no clear note was recorded, creating confusion in timesheets.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: User Directory Integration & Project Assignments (Page: /team) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Team Management</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/team" target="_blank" rel="noopener">
+          <span>https://pm.keenable.io/attendance/team</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Loading Users from Keycloak & Assigning Projects</h2>
+      <p class="slide-subtitle">Centralized login via Keycloak SSO, live directory search, and moving engineers between teams in 1 click.</p>
+      
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="feature-card highlight">
+            <div class="feature-title">Automatic Keycloak User Sync</div>
+            <div class="feature-desc">Users log in with their regular company Keycloak credentials. Their name, email, and role sync automatically with zero manual setup.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">Fast Live Name & Email Search</div>
+            <div class="feature-desc">Type any part of a name or email to immediately find available engineers from the bench pool or existing projects.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">1-Click Project Reallocation</div>
+            <div class="feature-desc">Admins can transfer an engineer to any target project with custom shift start times while keeping their past attendance records safe.</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top:6px">
+          <table>
+            <thead>
+              <tr>
+                <th>User / Email</th>
+                <th>Role</th>
+                <th>Current Status</th>
+                <th>Action Available</th>
+                <th>Target Project</th>
+                <th>Shift Start</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Mohd Imran</b> <br><span style="color:#64748b;font-size:11px">imran.mohd@fosteringlinux.com</span></td>
+                <td>Software Engineer</td>
+                <td><span class="badge badge-warning">Bench Pool</span></td>
+                <td><b>Assign to Team</b></td>
+                <td><b>UPSC</b></td>
+                <td>09:30</td>
+              </tr>
+              <tr>
+                <td><b>Priya Sharma</b> <br><span style="color:#64748b;font-size:11px">priya.s@fosteringlinux.com</span></td>
+                <td>Frontend Engineer</td>
+                <td><span class="badge badge-primary">NCLT</span></td>
+                <td><b>Transfer & Reassign</b></td>
+                <td><b>UPSC</b></td>
+                <td>10:00</td>
+              </tr>
+              <tr>
+                <td><b>Vikram Singh</b> <br><span style="color:#64748b;font-size:11px">vikram.s@fosteringlinux.com</span></td>
+                <td>DevOps Engineer</td>
+                <td><span class="badge badge-warning">Bench Pool</span></td>
+                <td><b>Assign to Team</b></td>
+                <td><b>Shiksha</b></td>
+                <td>09:30</td>
+              </tr>
+              <tr>
+                <td><b>Arun Kumar</b> <br><span style="color:#64748b;font-size:11px">arunk.pal@fosteringlinux.com</span></td>
+                <td>Tech Lead</td>
+                <td><span class="badge badge-success">UPSC</span></td>
+                <td><b>Update Shift / Role</b></td>
+                <td><b>NSP</b></td>
+                <td>09:30</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: Daily Project Attendance & Shift Operations (Page: /) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Daily Operations</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/" target="_blank" rel="noopener">
+          <span>https://pm.keenable.io/attendance/</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Daily Project Attendance & Shift Operations</h2>
+      <p class="slide-subtitle">Simple daily grid for project leads to mark check-ins, check-outs, lateness, leaves, and handovers.</p>
+      
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="feature-card">
+            <div class="feature-title">Project Tabs</div>
+            <div class="feature-desc">Switch smoothly between project tabs (UPSC, NCLT, Shiksha, NSP). Each member is shown with their shift start time.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-title">Clear Status Codes</div>
+            <div class="feature-desc">
+              <span class="code-pill pill-P">P</span> Present &nbsp;
+              <span class="code-pill pill-LT">LT</span> Late &nbsp;
+              <span class="code-pill pill-L">L</span> Leave &nbsp;
+              <span class="code-pill pill-HD">HD</span> Half Day &nbsp;
+              <span class="code-pill pill-W">W</span> WFH &nbsp;
+              <span class="code-pill pill-A">A</span> Absent
+            </div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-title">Automatic Late Calculation</div>
+            <div class="feature-desc">Compares check-in time against the engineer's shift start (e.g. 09:30 + 15m grace) and calculates late minutes in a dedicated column.</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top:4px">
+          <table>
+            <thead>
+              <tr>
+                <th>Engineer</th>
+                <th>Shift Start</th>
+                <th>Status</th>
+                <th>In Time</th>
+                <th>Out Time</th>
+                <th>Late (Mins)</th>
+                <th>Cover Handover</th>
+                <th>Daily Remarks / Context</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Arun Kumar</b> (Lead)</td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-P">Present</span></td>
+                <td>09:25</td>
+                <td>18:35</td>
+                <td><span style="color:var(--green)">—</span></td>
+                <td>—</td>
+                <td>Client site deployment</td>
+              </tr>
+              <tr>
+                <td><b>Mohd Imran</b></td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-P">Present</span></td>
+                <td>09:55</td>
+                <td>18:30</td>
+                <td><span style="color:var(--amber);font-weight:700">+25m</span></td>
+                <td>—</td>
+                <td>Metro transit delay</td>
+              </tr>
+              <tr>
+                <td><b>Priya Sharma</b></td>
+                <td>10:00</td>
+                <td><span class="code-pill pill-L">Leave</span></td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Vikram Singh</td>
+                <td>Advance Casual Leave (Approved on email)</td>
+              </tr>
+              <tr>
+                <td><b>Vikram Singh</b></td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-P">Present</span></td>
+                <td>09:20</td>
+                <td>18:40</td>
+                <td><span style="color:var(--green)">—</span></td>
+                <td>—</td>
+                <td>Visited Head Office for internal review</td>
+              </tr>
+              <tr>
+                <td><b>Neha Verma</b></td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-W">WFH</span></td>
+                <td>09:30</td>
+                <td>18:30</td>
+                <td><span style="color:var(--green)">—</span></td>
+                <td>—</td>
+                <td>Approved remote duty (Sprint coding)</td>
+              </tr>
+              <tr>
+                <td><b>Suresh Patel</b></td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-HD">Half Day</span></td>
+                <td>09:30</td>
+                <td>14:00</td>
+                <td><span style="color:var(--green)">—</span></td>
+                <td>Arun Kumar</td>
+                <td>First-half shift · Personal medical appointment</td>
+              </tr>
+              <tr>
+                <td><b>Amit Roy</b></td>
+                <td>09:30</td>
+                <td><span class="code-pill pill-L">Leave</span></td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Mohd Imran</td>
+                <td>Advance Sick Leave · Day 2 of 3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: Reporting & Summary Center (Page: /summary) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Operational Summary</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/summary" target="_blank" rel="noopener">
+          <span>https://pm.keenable.io/attendance/summary</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Daily Summary & Excel Downloads</h2>
+      <p class="slide-subtitle">Instant daily numbers, task handover verification, and 1-click Excel sheets ready for management review.</p>
+      
+      <div class="slide-content">
+        <div class="grid-4">
+          <div class="feature-card highlight" style="text-align:center">
+            <div style="font-size:11px;color:var(--text-mute)">TOTAL MEMBERS</div>
+            <div style="font-size:22px;font-weight:700;color:var(--primary)">28</div>
+          </div>
+          <div class="feature-card success" style="text-align:center">
+            <div style="font-size:11px;color:var(--green)">PRESENT TODAY</div>
+            <div style="font-size:22px;font-weight:700;color:var(--green)">22</div>
+          </div>
+          <div class="feature-card" style="text-align:center;border-left:4px solid var(--accent)">
+            <div style="font-size:11px;color:var(--accent)">ON LEAVE / WFH</div>
+            <div style="font-size:22px;font-weight:700;color:var(--accent)">5</div>
+          </div>
+          <div class="feature-card" style="text-align:center;border-left:4px solid var(--amber)">
+            <div style="font-size:11px;color:var(--amber)">LATE ARRIVALS</div>
+            <div style="font-size:22px;font-weight:700;color:var(--amber)">2</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:6px">
+          <div class="feature-card">
+            <div class="feature-title">Clear Daily Highlights</div>
+            <div class="feature-desc">
+              • <b>Absent without info</b>: Shows unplanned absences needing follow-up.<br>
+              • <b>On Leave & Handover</b>: Shows who is covering tasks + open OpenProject tickets.<br>
+              • <b>Present Members Table</b>: Full list with shift start, in/out times, and remarks.
+            </div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-title">1-Click Excel Reports</div>
+            <div class="feature-desc">
+              • <b>Download Today's Sheet</b>: Instant formatted Excel file for today's entries.<br>
+              • <b>Monthly Report</b>: Full monthly matrix + complete daily log sheet.<br>
+              • <b>Email Summary Now</b>: Sends management an instant HTML email summary.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Visual Trends & Regularity Analytics (Page: /trends) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Punctuality Trends</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/trends" target="_blank" rel="noopener">
+          <span>https://pm.keenable.io/attendance/trends</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Attendance Trends: 7 to 365 Days & Custom Dates</h2>
+      <p class="slide-subtitle">Interactive graphs, weekday lateness patterns, and scorecards covering short, medium, and multi-year ranges.</p>
+      
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="feature-card highlight">
+            <div class="feature-title">Extended Time Ranges</div>
+            <div class="feature-desc">Filter by <b>7, 14, 30, 60, 90, 180 days (6 months), 365 days (1 year)</b>, or pick any <b>Custom Date Range</b> from past years.</div>
+          </div>
+          <div class="feature-card highlight" style="border-top:3px solid var(--accent)">
+            <div class="feature-title">🔍 Real-Time Engineer Search</div>
+            <div class="feature-desc">Autofocus combobox (<code>🔍 Search name or role...</code>) filters individual trends instantly with keyboard nav (<code>Enter</code> / <code>Esc</code>) & 1-click clear.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">Weekday Matrix & Regularity</div>
+            <div class="feature-desc">Identifies recurring late days (e.g. <i>Monday 38%</i> vs <i>Friday 4%</i>) and grades attendance as <b>Regular</b>, <b>Minor</b>, or <b>Irregular</b>.</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top:6px">
+          <table>
+            <thead>
+              <tr>
+                <th>Engineer</th>
+                <th>Regularity Flag</th>
+                <th>Days Present</th>
+                <th>Late Days</th>
+                <th>Late %</th>
+                <th>Avg Late</th>
+                <th>Planned Leaves</th>
+                <th>Punctuality Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Arun Kumar</b></td>
+                <td><span class="badge badge-success">Regular</span></td>
+                <td>22 of 22</td>
+                <td>1</td>
+                <td>4%</td>
+                <td>8m</td>
+                <td>0</td>
+                <td>Steady</td>
+              </tr>
+              <tr>
+                <td><b>Mohd Imran</b></td>
+                <td><span class="badge badge-warning">Minor</span></td>
+                <td>20 of 22</td>
+                <td>3</td>
+                <td>15%</td>
+                <td>18m</td>
+                <td>2</td>
+                <td>Improving</td>
+              </tr>
+              <tr>
+                <td><b>Priya Sharma</b></td>
+                <td><span class="badge badge-success">Regular</span></td>
+                <td>18 of 22</td>
+                <td>0</td>
+                <td>0%</td>
+                <td>—</td>
+                <td>4</td>
+                <td>Steady</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Advance Leave Pre-Marking Automation (Modal: Leave Management) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Leave Automation</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/" target="_blank" rel="noopener">
+          <span>Modal on https://pm.keenable.io/attendance/</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Pre-Marking Approved Leaves in Advance</h2>
+      <p class="slide-subtitle">Enter pre-approved email leaves once; future dates are automatically marked while skipping weekends.</p>
+      
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="feature-card highlight">
+            <div class="feature-title">1. One-Time Setup</div>
+            <div class="feature-desc">When leave is approved on email, the PM enters the date range (e.g. Oct 20 to Oct 24), leave type, and chooses a task cover person.</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">2. Skips Weekends Automatically</div>
+            <div class="feature-desc">The system automatically skips Saturdays and Sundays. Only official working days are pre-marked as Leave (<span class="code-pill pill-L">L</span>).</div>
+          </div>
+          <div class="feature-card highlight">
+            <div class="feature-title">3. Easy Early Return</div>
+            <div class="feature-desc">If the engineer comes back to work early (e.g. Thursday), simply mark today as <b>Present</b>; remaining future leave days stay saved.</div>
+          </div>
+        </div>
+
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 18px;margin-top:6px">
+          <div style="font-size:13.5px;font-weight:700;color:var(--primary);margin-bottom:6px">Visual Flow: Email Approval to Daily Roster</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--text-mute)">
+            <div style="text-align:center;flex:1"><b>1. Approved on Email</b><br>Manager approves request</div>
+            <div style="color:var(--accent);font-weight:700">➔</div>
+            <div style="text-align:center;flex:1"><b>2. Enter Date Range</b><br>PM enters span in modal</div>
+            <div style="color:var(--accent);font-weight:700">➔</div>
+            <div style="text-align:center;flex:1"><b>3. Auto-Prepopulates</b><br>Weekdays marked as 'L'</div>
+            <div style="color:var(--accent);font-weight:700">➔</div>
+            <div style="text-align:center;flex:1"><b>4. Ready Every Morning</b><br>No daily manual typing</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: Duty Transparency - Client Site & Head Office -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Location Transparency</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/summary" target="_blank" rel="noopener">
+          <span>Remarks on / & /summary</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">Client Site vs. Head Office Duty Remarks</h2>
+      <p class="slide-subtitle">Recording off-site work locations clearly so internal project timesheets remain 100% accurate.</p>
+      
+      <div class="slide-content">
+        <div class="feature-card highlight">
+          <div class="feature-title">The Real-World Situation</div>
+          <div class="feature-desc">Engineers usually work at client sites. When visiting Head Office for sprint reviews, internal meetings, or IT hardware setup, they remain <b>actively on duty</b> for their project.</div>
+        </div>
+
+        <div class="grid-2" style="margin-top:4px">
+          <div class="feature-card success">
+            <div class="feature-title">How Project Leads Mark It</div>
+            <div class="feature-desc">
+              1. Mark status as <b>Present (<span class="code-pill pill-P">P</span>)</b> on the daily grid.<br>
+              2. Enter check-in and check-out times.<br>
+              3. Type the simple reason in <b>Remarks</b>: <i>"Visited Head Office for internal sprint review / IT hardware setup"</i>.
+            </div>
+          </div>
+          <div class="feature-card success">
+            <div class="feature-title">Where the Note Appears</div>
+            <div class="feature-desc">
+              • <b>My Attendance (`/me`)</b>: Engineer can see their location note.<br>
+              • <b>Summary Dashboard (`/summary`)</b>: Visible in Present Members list.<br>
+              • <b>Daily Email Digest</b>: Sent in executive daily summary email.<br>
+              • <b>Excel Downloads</b>: Saved in the monthly log for timesheet records.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: Self-Service Employee Experience (Page: /me) -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Employee View</div>
+        <a class="url-badge" href="https://pm.keenable.io/attendance/me" target="_blank" rel="noopener">
+          <span>https://pm.keenable.io/attendance/me</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <h2 class="slide-title">My Attendance: Self-Service Employee View</h2>
+      <p class="slide-subtitle">A clear monthly calendar where engineers can check their daily punch times, shifts, and leaves.</p>
+      
+      <div class="slide-content">
+        <div class="grid-3">
+          <div class="feature-card">
+            <div class="feature-title">Personal Monthly Calendar</div>
+            <div class="feature-desc">Review check-in times, check-out times, and total hours worked for any selected month.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-title">Shift Time Transparency</div>
+            <div class="feature-desc">Displays assigned shift start time (e.g. 09:30), grace minutes, and highlights any late minutes.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-title">Leave & Remarks Check</div>
+            <div class="feature-desc">Verify pre-approved leaves and confirm that Head Office duty notes were recorded properly.</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top:6px">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Status</th>
+                <th>In Time</th>
+                <th>Out Time</th>
+                <th>Worked Hours</th>
+                <th>Late By</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>19-Oct Mon</td>
+                <td>UPSC</td>
+                <td><span class="code-pill pill-P">Present</span></td>
+                <td>09:25</td>
+                <td>18:35</td>
+                <td>9h 10m</td>
+                <td>—</td>
+                <td>Client site deployment</td>
+              </tr>
+              <tr>
+                <td>20-Oct Tue</td>
+                <td>UPSC</td>
+                <td><span class="code-pill pill-P">Present</span></td>
+                <td>09:20</td>
+                <td>18:40</td>
+                <td>9h 20m</td>
+                <td>—</td>
+                <td>Visited Head Office for internal review</td>
+              </tr>
+              <tr>
+                <td>21-Oct Wed</td>
+                <td>UPSC</td>
+                <td><span class="code-pill pill-L">Leave</span></td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Advance Casual Leave (Pre-approved on email)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: Infrastructure Architecture & Dual-App Topology -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Architecture & Topology</div>
+        <span class="badge badge-primary">One Domain · One Sign-In · Separate Data</span>
+      </div>
+      <h2 class="slide-title">Infrastructure Architecture & Dual-App Topology</h2>
+      <p class="slide-subtitle">Nginx routes / to OpenProject and /attendance to the Attendance Portal behind shared Keycloak SSO.</p>
+      
+      <div class="slide-content">
+        <!-- Visual Infrastructure Topology Grid -->
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
+          
+          <!-- Top Row: Browser & Nginx -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+            <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:8px 16px;text-align:center;min-width:130px;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+              <div style="font-weight:700;color:var(--primary);font-size:12.5px">🌐 User Browser</div>
+              <div style="font-size:11px;color:var(--text-mute)">Any device</div>
+            </div>
+            <div style="color:var(--accent);font-weight:800;font-size:14px">── HTTPS ──►</div>
+            <div style="background:var(--primary);color:#fff;border-radius:6px;padding:8px 18px;text-align:center;min-width:180px">
+              <div style="font-weight:700;font-size:13px">Nginx Reverse Proxy</div>
+              <div style="font-size:11px;opacity:0.9">pm.keenable.io (TLS Encrypted)</div>
+            </div>
+          </div>
+
+          <!-- Middle Split Row: OpenProject vs Attendance Portal -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:2px">
+            
+            <!-- Left: OpenProject App -->
+            <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;border-top:3px solid var(--accent)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <b style="font-size:12.5px;color:var(--primary)">OpenProject Application</b>
+                <span class="code-pill pill-P" style="font-size:10px">Route: /</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-mute);margin-bottom:6px">Podman container running project & task management.</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:5px 8px;border-radius:4px;font-size:11px">
+                <span>Database:</span>
+                <b>PostgreSQL (openproject db)</b>
+              </div>
+            </div>
+
+            <!-- Right: Attendance Portal -->
+            <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;border-top:3px solid var(--green)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <b style="font-size:12.5px;color:var(--primary)">Attendance Portal</b>
+                <span class="code-pill pill-P" style="font-size:10px">Route: /attendance</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-mute);margin-bottom:6px">Flask + Gunicorn WSGI running as systemd Quadlet service.</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);padding:5px 8px;border-radius:4px;font-size:11px">
+                <span>Storage:</span>
+                <b>SQLite (WAL mode) / PostgreSQL</b>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Shared Services Row: Keycloak, API Sync, SMTP -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:2px">
+            <div style="background:var(--card-bg);border:1px solid #7c3aed;border-radius:6px;padding:8px 10px;text-align:center">
+              <div style="font-weight:700;color:#7c3aed;font-size:12px">🔑 Keycloak SSO (auth.keenable.io)</div>
+              <div style="font-size:10.5px;color:var(--text-mute);margin-top:2px">OIDC Auth Code + Back-channel Single Sign-Out (SLO)</div>
+            </div>
+            <div style="background:var(--card-bg);border:1px solid var(--accent);border-radius:6px;padding:8px 10px;text-align:center">
+              <div style="font-weight:700;color:var(--accent);font-size:12px">🔄 Read-Only API Integration</div>
+              <div style="font-size:10.5px;color:var(--text-mute);margin-top:2px">Attendance portal fetches open tasks during leave cover</div>
+            </div>
+            <div style="background:var(--card-bg);border:1px solid #0284c7;border-radius:6px;padding:8px 10px;text-align:center">
+              <div style="font-weight:700;color:#0284c7;font-size:12px">✉️ Shared SMTP Mail Relay</div>
+              <div style="font-size:10.5px;color:var(--text-mute);margin-top:2px">Executive daily summary briefings and alert emails</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 11: Technology Stack & Security Architecture -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Security & Stack</div>
+        <span class="badge badge-primary">Small Stack · Standard Security</span>
+      </div>
+      <h2 class="slide-title">Technology Stack & Security Architecture</h2>
+      <p class="slide-subtitle">Few moving parts, standard protocols, and enterprise-grade role-based access control.</p>
+      
+      <div class="slide-content">
+        <div class="grid-2">
+          
+          <!-- Left: Layer vs Technology Table -->
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:30%">Layer</th>
+                  <th>Technology & Implementation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Application</b></td>
+                  <td>Python 3.12, Flask 3.0, Gunicorn WSGI (<code>--threads 8</code>)</td>
+                </tr>
+                <tr>
+                  <td><b>Pages & UI</b></td>
+                  <td>Server-rendered Jinja2 templates, inline dynamic SVG charts</td>
+                </tr>
+                <tr>
+                  <td><b>Database</b></td>
+                  <td>SQLite 3 in container volume (WAL mode; PostgreSQL supported via <code>DATABASE_URL</code>)</td>
+                </tr>
+                <tr>
+                  <td><b>Identity & SSO</b></td>
+                  <td>Keycloak, OpenID Connect Authorization Code Flow (<code>Authlib</code>)</td>
+                </tr>
+                <tr>
+                  <td><b>Reports</b></td>
+                  <td><code>openpyxl</code> for high-speed Excel export generation</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Right: Security & Governance Card -->
+          <div class="feature-card highlight" style="border-left:4px solid var(--green);display:flex;flex-direction:column;gap:6px">
+            <div class="feature-title" style="color:var(--primary);font-size:14px">Enterprise Security & Governance</div>
+            <div class="feature-desc" style="font-size:11.5px;line-height:1.45">
+              • <b>Zero Password Storage</b>: Portal stores no credentials; authentication is 100% delegated to Keycloak.<br>
+              • <b>Single Sign-Out (SLO)</b>: Signing out in either app immediately terminates session across OpenProject & Keycloak via back-channel webhook.<br>
+              • <b>Dynamic 5-Minute Role Re-Check</b>: Keycloak roles are refreshed every 5 minutes. A revoked role or disabled account loses access within 5 minutes.<br>
+              • <b>Role-Based Access Control (RBAC)</b>:
+                <br>&nbsp;&nbsp;– <i>Admin</i>: Full control over all projects, settings, and bench pool.
+                <br>&nbsp;&nbsp;– <i>TL / PM</i>: Entry, leave modal, and summary for assigned projects only.
+                <br>&nbsp;&nbsp;– <i>Engineer</i>: Self-service personal attendance view (<code>/me</code>) only.<br>
+              • <b>CSRF & Session Security</b>: Anti-CSRF token on every POST, HTTPS-only secure cookies.<br>
+              • <b>Configurable Settings</b>: Shift start (default 09:30), 15m grace, 9h shift length, and weekly offs are settings, not hardcoded.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 12: Production Delivery Status & Roadmap -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Delivery Status</div>
+        <span class="badge badge-success">Production Status & Roadmap</span>
+      </div>
+      <h2 class="slide-title">Production Delivery Status & Roadmap</h2>
+      <p class="slide-subtitle">Clear inventory of live capabilities delivered in production vs planned next-phase enhancements.</p>
+      
+      <div class="slide-content">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:38%">Feature / Capability</th>
+                <th style="width:14%;text-align:center">Status</th>
+                <th>Implementation Details & Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Projects, Teams & Daily Entry</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Live on <code>pm.keenable.io/attendance/</code> with multi-project tabs, in/out timestamps, and lateness tracking.</td>
+              </tr>
+              <tr>
+                <td><b>Keycloak SSO & 5-Min Role Re-Check</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Central single sign-on with automatic back-channel Single Sign-Out (SLO) and 5-minute permission re-sync.</td>
+              </tr>
+              <tr>
+                <td><b>Keycloak User Directory & Bench Pool</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Instant directory search on <code>/team</code>, bench pool visibility, and 1-click project reassignment.</td>
+              </tr>
+              <tr>
+                <td><b>Advance Leave Modal (Skip Weekends)</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Multi-day leave pre-filling that skips Saturdays & Sundays with mandatory task cover validation.</td>
+              </tr>
+              <tr>
+                <td><b>WFH & Half-Day Status Tracking</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Dedicated status codes (<code>W</code> and <code>HD</code>) with timestamp logs and location remarks.</td>
+              </tr>
+              <tr>
+                <td><b>Extended Trends & Engineer Search</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>7, 14, 30, 60, 90, 180, 365 days, custom date range, and instant engineer search bar with keyboard nav.</td>
+              </tr>
+              <tr>
+                <td><b>Excel Downloads & Email Briefing</b></td>
+                <td style="text-align:center"><span class="badge badge-success">LIVE</span></td>
+                <td>Single-day and monthly Excel workbooks + automated management briefing email dispatch.</td>
+              </tr>
+              <tr>
+                <td><b>Audit-Lock Past Dates for TL/PM</b></td>
+                <td style="text-align:center"><span class="badge badge-primary">NEXT</span></td>
+                <td>Freeze past dates for TL/PM to ensure audit-proof history; corrections restricted to Admin override.</td>
+              </tr>
+              <tr>
+                <td><b>PostgreSQL Server Migration</b></td>
+                <td style="text-align:center"><span class="badge badge-primary">NEXT</span></td>
+                <td>Already architected: set <code>DATABASE_URL</code> to transition from local SQLite to dedicated PostgreSQL.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 13: Step-by-Step Live Demonstration Walkthrough -->
+    <section class="slide">
+      <div class="slide-top-bar">
+        <div class="slide-tag">Live Demonstration</div>
+        <span class="badge badge-primary">Full User Journey</span>
+      </div>
+      <h2 class="slide-title">Step-by-Step Live Demonstration Flow</h2>
+      <p class="slide-subtitle">A realistic end-to-end walkthrough showing how all roles use the portal in practice.</p>
+      
+      <div class="slide-content">
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-text">
+              <h4>
+                <span>PM/TL Searches Directory & Reassigns Bench Engineer</span>
+                <a class="url-badge" style="font-size:11px;padding:2px 8px" href="https://pm.keenable.io/attendance/team" target="_blank" rel="noopener">/team</a>
+              </h4>
+              <p>PM/TL searches for an engineer loaded from Keycloak and assigns them from Bench Pool to project with specific shift timing.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-text">
+              <h4>
+                <span>PM Marks Daily Attendance & Remark</span>
+                <a class="url-badge" style="font-size:11px;padding:2px 8px" href="https://pm.keenable.io/attendance/" target="_blank" rel="noopener">/</a>
+              </h4>
+              <p>PM selects UPSC project tab, records check-in/out times, views late minutes, and notes a Head Office visit in Remarks.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-text">
+              <h4>
+                <span>PM Pre-Marks Pre-Approved Advance Leave</span>
+                <span class="badge badge-warning" style="font-size:10px">Leave Modal</span>
+              </h4>
+              <p>PM opens Leave Management modal and enters an approved leave. Future weekdays are automatically pre-marked.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-text">
+              <h4>
+                <span>PM Reviews Summary & Downloads Monthly Excel</span>
+                <a class="url-badge" style="font-size:11px;padding:2px 8px" href="https://pm.keenable.io/attendance/summary" target="_blank" rel="noopener">/summary</a>
+                <a class="url-badge" style="font-size:11px;padding:2px 8px" href="https://pm.keenable.io/attendance/trends" target="_blank" rel="noopener">/trends</a>
+              </h4>
+              <p>PM checks daily numbers on <code>/summary</code>, inspects long-term regularity on <code>/trends</code> with instant engineer search, and downloads the monthly Excel report.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">5</div>
+            <div class="step-text">
+              <h4>
+                <span>Engineer Checks Personal Monthly Calendar</span>
+                <a class="url-badge" style="font-size:11px;padding:2px 8px" href="https://pm.keenable.io/attendance/me" target="_blank" rel="noopener">/me</a>
+              </h4>
+              <p>Engineer logs in using Keycloak to verify their shift start time, punch hours, approved leave days, and Head Office duty note.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Navigation Footer -->
+  <footer>
+    <div class="nav-hints">
+      <span>Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> to navigate</span>
+      <span>Press <span class="kbd">Ctrl + P</span> to export PDF</span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-nav alt" id="prev-btn" onclick="prevSlide()">Previous</button>
+      <button class="btn-nav" id="next-btn" onclick="nextSlide()">Next Slide ➔</button>
+    </div>
+  </footer>
+
+  <!-- Interactive Slide Controller & Theme Switcher -->
+  <script>
+    var currentSlide = 0;
+    var slides = document.querySelectorAll('.slide');
+    var totalSlides = slides.length;
+    var progressBar = document.getElementById('progress-bar');
+    var indicator = document.getElementById('slide-indicator');
+    var prevBtn = document.getElementById('prev-btn');
+    var nextBtn = document.getElementById('next-btn');
+
+    function updateSlide() {
+      slides.forEach(function(s, idx) {
+        if (idx === currentSlide) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      var progress = ((currentSlide + 1) / totalSlides) * 100;
+      progressBar.style.width = progress + '%';
+      indicator.textContent = 'Slide ' + (currentSlide + 1) + ' of ' + totalSlides;
+
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.textContent = (currentSlide === totalSlides - 1) ? 'Finish ➔' : 'Next Slide ➔';
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowRight' || e.key === 'Space') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+
+    /* Dark / Light Mode Switcher */
+    function toggleTheme() {
+      var html = document.documentElement;
+      var currentTheme = html.getAttribute('data-theme');
+      var newTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+      html.setAttribute('data-theme', newTheme);
+      
+      var icon = document.getElementById('theme-icon');
+      var label = document.getElementById('theme-label');
+      if (newTheme === 'dark') {
+        icon.textContent = '☀️';
+        label.textContent = 'Light Mode';
+      } else {
+        icon.textContent = '🌙';
+        label.textContent = 'Dark Mode';
+      }
+    }
+
+    updateSlide();
+  </script>
+</body>
+</html>

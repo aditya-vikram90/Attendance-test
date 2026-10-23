@@ -1,0 +1,237 @@
+{% extends "base.html" %}{% block body %}
+<style>
+.setup-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px 26px;
+  margin-top: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.setup-card h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  color: #1e293b;
+  font-weight: 700;
+}
+.setup-card .mute {
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+.setup-card .form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin: 10px 0;
+}
+.setup-card label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+.setup-card table {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+.setup-card table th {
+  background: #f1f5f9;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid var(--line);
+}
+.setup-card table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.setup-card button {
+  margin-top: 14px;
+}
+</style>
+
+<div class="tabs">{% for p in projects %}<a class="{{ 'on' if p.id==pid }}" href="{{ url_for('wf_setup', project=p.id) }}">{{p.name}}</a>{% endfor %}</div>
+
+<div class="setup-card">
+  <h3>PM chain & Approval Hierarchy</h3>
+  <p class="mute">PM0 is the Primary Project Lead. Daily attendance and leaves route to PM0 first, then delegate down the chain (PM1 &rarr; PM2 &rarr; PM3) if the manager above is on leave. Overdue items and capacity decisions escalate up the chain or to Admin.</p>
+  <form method="post" action="{{ url_for('wf_chain_save') }}">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <input type="hidden" name="project" value="{{pid}}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-width:850px;margin-bottom:12px">
+      {% for lv in levels %}
+      <label style="display:flex;flex-direction:column;gap:4px">
+        <span><b>PM{{lv}}</b> {{ '(Primary Project Lead)' if lv==0 else ('(Deputy ' ~ lv ~ ')') }}</span>
+        <input type="email" name="pm{{lv}}" value="{{ chain.get(lv,'') }}" placeholder="pm{{lv}}@company.com" style="width:100%">
+      </label>
+      {% endfor %}
+    </div>
+    <button>Save PM chain</button>
+  </form>
+</div>
+
+<div class="setup-card">
+  <h3>Project Information & Capacity Rules</h3>
+  <form method="post" action="{{ url_for('wf_info_save') }}">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <input type="hidden" name="project" value="{{pid}}">
+    
+    <div class="form-row">
+      <label style="flex:1;min-width:200px">Owner / Client Lead Name<br>
+        <input name="owner_name" value="{{info.owner_name or ''}}" maxlength="120" style="width:100%;margin-top:4px">
+      </label>
+      <label style="flex:1;min-width:200px">Owner Email<br>
+        <input type="email" name="owner_email" value="{{info.owner_email or ''}}" style="width:100%;margin-top:4px">
+      </label>
+      <label style="flex:1;min-width:160px">Owner Phone<br>
+        <input name="owner_phone" value="{{info.owner_phone or ''}}" maxlength="30" style="width:100%;margin-top:4px">
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label style="flex:1;min-width:280px">Office Address / General Location<br>
+        <input name="location" value="{{info.location or ''}}" maxlength="200" style="width:100%;margin-top:4px" placeholder="e.g. Dholpur House, Shahjahan Road, New Delhi">
+      </label>
+    </div>
+
+    <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+      <label style="display:block;margin-bottom:8px">
+        <b>Minimum Capacity:</b> Minimum engineers on duty required each day
+        <input name="min_capacity" value="{{info.min_capacity or ''}}" style="width:90px;margin-left:8px" placeholder="auto">
+        <span class="mute" style="margin-left:6px">(leave empty for automatic 60% of the active team)</span>
+      </label>
+      <div style="margin-top:8px">
+        <b>Default Weekly Off:</b>
+        <div style="display:inline-flex;gap:12px;margin-left:10px;flex-wrap:wrap">
+          {% for d in days %}
+          <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" name="woff" value="{{d}}" {{ 'checked' if d in dflt_off }}> {{d|capitalize}}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="mute" style="margin-top:4px">Site-wide default when none selected: {{ site_off|join(', ') }}</div>
+      </div>
+    </div>
+    
+    <button>Save Project Information</button>
+  </form>
+</div>
+
+<div class="setup-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div>
+      <h3>Phone Check-in Sites & Work Geofences</h3>
+      <p class="mute" style="margin:4px 0 0">Configure physical GPS coordinates and radius boundaries where engineers automatically punch in/out using the mobile app.</p>
+    </div>
+  </div>
+
+  {% if is_admin %}
+  <div style="margin-bottom:16px;padding:12px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+    <form method="post" action="{{ url_for('sites_limits') }}" class="inline" style="flex-wrap:wrap">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <input type="hidden" name="next" value="{{ url_for('wf_setup', project=pid) }}">
+      <b style="font-size:13px;margin-right:6px">Global Radius Limits (Admin):</b>
+      <label>Min (m) <input type="number" name="lo" value="{{mobile.radius_min}}" min="5" max="5000" style="width:80px;margin-left:4px"></label>
+      <label style="margin-left:8px">Max (m) <input type="number" name="hi" value="{{mobile.radius_max}}" min="5" max="5000" style="width:80px;margin-left:4px"></label>
+      <button style="margin-left:8px;padding:4px 12px;font-size:12px">Save limits</button>
+      <span class="mute" style="margin-left:8px">Applies to all project geofences.</span>
+    </form>
+  </div>
+  {% endif %}
+
+  {% for s in sites %}
+  <form method="post" action="{{ url_for('sites_save') }}" style="margin-bottom:14px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <input type="hidden" name="project" value="{{pid}}">
+    <input type="hidden" name="site_id" value="{{s.id}}">
+    <input type="hidden" name="next" value="{{ url_for('wf_setup', project=pid) }}">
+    
+    {% include "_site_fields.html" %}
+    
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button name="action" value="save">Save site</button>
+      <button class="alt" name="action" value="remove" formnovalidate onclick="return confirm('Remove this work site geofence?')">Remove</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="mute" style="padding:14px;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1;margin-bottom:12px">
+    No geofenced work sites configured yet for this project. Engineers using the mobile app cannot check in automatically until at least one site is added below.
+  </p>
+  {% endfor %}
+
+  <details class="act" style="margin-top:8px">
+    <summary style="font-weight:600;color:var(--blue)">+ Add a work site geofence</summary>
+    <form method="post" action="{{ url_for('sites_save') }}" style="margin-top:10px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <input type="hidden" name="project" value="{{pid}}">
+      <input type="hidden" name="next" value="{{ url_for('wf_setup', project=pid) }}">
+      {% set s = {'name': '', 'lat': '', 'lon': '', 'radius': 250, 'dwell_in': 5, 'dwell_out': 10, 'beacon_mode': 'off', 'beacon_ids': ''} %}
+      {% include "_site_fields.html" %}
+      <div style="margin-top:10px">
+        <button>Add site</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="setup-card">
+  <h3>Engineer Weekly Off Customization</h3>
+  <p class="mute">Override weekly off days per engineer (for example, Mon &amp; Tue off for engineers working weekend shifts). Unchecked engineers follow the project default above.</p>
+  <form method="post" action="{{ url_for('wf_weekoff_save') }}">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <input type="hidden" name="project" value="{{pid}}">
+    <table>
+      <thead>
+        <tr><th>Engineer</th>{% for d in days %}<th>{{d|capitalize}}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td><b>{{m.name}}</b><input type="hidden" name="wo_present_{{m.id}}" value="1"></td>
+          {% for d in days %}
+          <td style="text-align:center">
+            <input type="checkbox" name="wo_{{m.id}}" value="{{d}}" {{ 'checked' if d in own_off.get(m.id, []) }}>
+          </td>
+          {% endfor %}
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="none">No team members assigned to this project yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button>Save Weekly Offs</button>
+  </form>
+</div>
+
+<div class="setup-card">
+  <h3>Client-Side Reporting Officers</h3>
+  <p class="mute">Specify external client contacts or client managers responsible for individual engineers on site.</p>
+  <form method="post" action="{{ url_for('wf_officers_save') }}">
+    <input type="hidden" name="csrf" value="{{csrf}}">
+    <input type="hidden" name="project" value="{{pid}}">
+    <table>
+      <thead>
+        <tr><th>Engineer</th><th>Officer Name</th><th>Officer Email</th><th>Officer Phone</th></tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        {% set o = officers.get(m.id, {}) %}
+        <tr>
+          <td><b>{{m.name}}</b></td>
+          <td><input name="o_name_{{m.id}}" value="{{o.name or ''}}" placeholder="Contact name" maxlength="100" style="width:100%"></td>
+          <td><input type="email" name="o_email_{{m.id}}" value="{{o.email or ''}}" placeholder="contact@client.com" style="width:100%"></td>
+          <td><input name="o_phone_{{m.id}}" value="{{o.phone or ''}}" placeholder="+91 ..." maxlength="30" style="width:100%"></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="none">No team members assigned yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button>Save Reporting Officers</button>
+  </form>
+</div>
+{% endblock %}

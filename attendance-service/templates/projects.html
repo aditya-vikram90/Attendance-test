@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block body %}
+{% set mgr = role in ('admin','manager') %}
+{% if can_create %}<div class="sec"><h2 style="background:var(--nav)">Add a project</h2><div style="padding:12px">
+<form method="post" action="{{ url_for('projects_create') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}">
+<input type="text" name="name" placeholder="Project name" maxlength="80" required pattern="{{pat.project}}" title="2-80 characters, at least one letter" style="min-width:320px">
+<button>Add project</button></form></div></div>{% endif %}
+
+{% if mgr %}<form id="watchform" method="post" action="{{ url_for('projects_watch') }}"><input type="hidden" name="csrf" value="{{csrf}}"></form>{% endif %}
+<div class="sec"><h2 style="background:var(--nav)">Projects</h2><table>
+<tr>{% if mgr %}<th style="width:60px">Watch</th>{% endif %}<th>Project</th><th>Engineers</th><th>TL/PM</th><th>Open</th></tr>
+{% for p in projects %}<tr class="{{ '' if p.active else 'off' }}">
+{% if mgr %}<td>{% if p.active %}<input type="checkbox" form="watchform" name="watch" value="{{p.id}}" {{ 'checked' if p.id in watching }}>{% endif %}</td>{% endif %}
+<td class="wrap" style="{{ 'padding-left:32px' if p.parent }}">{% if p.parent %}↳ {{p.short}}{% else %}<b>{{p.short}}</b>{% endif %}{% if not p.active %} <span class="mute">(archived)</span>{% endif %}
+{% if p.editable and not p.parent and p.active %}<details class="act"><summary>+ Sub-project</summary>
+<form method="post" action="{{ url_for('projects_create') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="parent" value="{{p.id}}">
+<input type="text" name="name" placeholder="Sub-project name" maxlength="80" required pattern="{{pat.project}}" title="2-80 characters, at least one letter"><button>Add under {{p.short}}</button></form></details>{% endif %}
+{% if p.editable or role=='admin' %}<details class="act"><summary>Edit</summary>
+<form method="post" action="{{ url_for('projects_update') }}"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="project" value="{{p.id}}">
+<p><label>Name<br><input type="text" name="name" value="{{p.short}}" maxlength="80" required pattern="{{pat.project}}" title="2-80 characters, at least one letter"></label></p>
+{% if role=='admin' %}<p><label>TL/PM emails <span class="mute">(comma separated; they will see only this project{{ '' if p.parent else ' and its sub-projects' }})</span><br><input type="text" name="leads" value="{{p.leads}}" placeholder="name@company.com"></label></p>{% endif %}
+{% if op_projects %}<p><label>OpenProject link <span class="mute">(optional)</span><br><select name="op_id"><option value="">Not linked</option>{% for o in op_projects %}<option value="{{o.id}}" {{ 'selected' if o.id==p.op_id }}>{{o.name}}</option>{% endfor %}</select></label></p>{% endif %}
+<p><button name="action" value="save">Save</button>{% if role=='admin' %} <button class="alt" name="action" value="{{ 'archive' if p.own_active else 'restore' }}" formnovalidate>{{ 'Archive' if p.own_active else 'Restore' }}</button>{% endif %}</p></form></details>{% endif %}</td>
+<td>{{p.count}}</td><td class="wrap">{{ p.leads or ('same as main project' if p.parent else '-') }}</td>
+<td>{% if p.active %}<a href="{{ url_for('entry', project=p.id) }}">Attendance</a>{% if p.editable %} · <a href="{{ url_for('team_page', project=p.id) }}">Team</a>{% endif %} · <a href="{{ url_for('summary', project=p.id) }}">Summary</a> · <a href="{{ url_for('history', project=p.id) }}">History</a>{% if p.editable %} · <a href="{{ url_for('wf_setup', project=p.id) }}">Setup & Sites</a>{% endif %}{% endif %}</td></tr>
+{% else %}<tr><td colspan="5" class="none">No projects yet.{% if can_create %} Type a name above and press "Add project".{% else %} Ask the administrator to give you a project.{% endif %}</td></tr>{% endfor %}</table>
+{% if mgr and projects %}<div style="padding:10px 12px"><button form="watchform" class="alt">Save my watch list</button>
+<span class="mute">Tick the projects you want to watch; Attendance, Summary and History will then open on those. Tick none to see all.</span></div>{% endif %}</div>
+
+{% endblock %}

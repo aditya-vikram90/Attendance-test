@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+.cfg-container { max-width: 1100px; margin: 20px auto; }
+.cfg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.cfg-tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--line); margin-bottom: 24px; }
+.cfg-tab { padding: 10px 18px; font-weight: 600; font-size: 14px; color: var(--mute); text-decoration: none; border-bottom: 3px solid transparent; cursor: pointer; }
+.cfg-tab.active { color: var(--nav); border-bottom-color: var(--nav); }
+.cfg-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.cfg-card h3 { margin-top: 0; margin-bottom: 6px; font-size: 16px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.cfg-card p.subtitle { margin-top: 0; font-size: 13px; color: var(--mute); margin-bottom: 20px; }
+.cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width: 768px) { .cfg-grid { grid-template-columns: 1fr; } }
+.cfg-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: #fafbfc; }
+.cfg-info { max-width: 75%; }
+.cfg-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 2px; }
+.cfg-desc { font-size: 12px; color: var(--mute); line-height: 1.4; }
+
+/* Modern iOS-style toggle switch */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+input:checked + .slider { background-color: #1F3864; }
+input:checked + .slider:before { transform: translateX(20px); }
+
+.cfg-input { padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; width: 120px; text-align: right; }
+.cfg-input-text { padding: 8px 12px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; width: 100%; box-sizing: border-box; }
+.smtp-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.smtp-badge { background: #166534; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+</style>
+
+<div class="cfg-container">
+  <div class="cfg-header">
+    <div>
+      <h2 style="margin:0;font-size:22px;color:var(--ink);">System Settings & Feature Toggles</h2>
+      <p style="margin:4px 0 0;font-size:13px;color:var(--mute);">Configure real-time behaviors for Web Portal, Email Notifications, and Mobile App without code redeployment.</p>
+    </div>
+    <div>
+      <button form="cfg-form" type="submit" class="btn" style="padding:10px 20px;font-size:14px;font-weight:700;">Save All Changes</button>
+    </div>
+  </div>
+
+  <div class="cfg-tabs">
+    <div class="cfg-tab active" onclick="showTab('email')">✉️ Email Notifications ({{ configs|selectattr('category','equalto','email')|list|length }})</div>
+    <div class="cfg-tab" onclick="showTab('mobile')">📱 Mobile App Flags ({{ configs|selectattr('category','equalto','mobile')|list|length }})</div>
+    <div class="cfg-tab" onclick="showTab('web')">💻 Web Management & Review</div>
+    <div class="cfg-tab" onclick="showTab('policy')">📋 Leaves & Policies</div>
+  </div>
+
+  <!-- Live SMTP Diagnostics Card -->
+  <div class="smtp-box">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="smtp-badge">SMTP READY</span>
+        <strong style="color:#166534;font-size:14px;">Google Workspace Relay Active</strong>
+      </div>
+      <div style="font-size:12px;color:#15803d;margin-top:4px;">Host: <code>smtp.gmail.com:587</code> &bull; Sender: <code>oppm@fosteringlinux.com</code> (STARTTLS)</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="email" id="test-email-input" placeholder="Enter recipient email" value="{{ user.email if user else '' }}" style="padding:6px 10px;font-size:13px;width:220px;border:1px solid #bbf7d0;border-radius:4px;">
+      <button type="button" class="btn" style="background:#166534;border-color:#166534;padding:6px 14px;" onclick="sendTestEmail()">Send Test Email</button>
+      <span id="test-email-status" style="font-size:12px;font-weight:600;"></span>
+    </div>
+  </div>
+
+  <form id="cfg-form" method="POST" action="{{ url_for('settings_save') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+
+    <!-- TAB 1: EMAIL NOTIFICATIONS -->
+    <div id="tab-email" class="tab-pane">
+      <div class="cfg-card">
+        <h3>✉️ Automated Event Notifications</h3>
+        <p class="subtitle">Individually toggle which events dispatch emails to employees, Project Managers, and management.</p>
+        
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'email' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MOBILE APP FEATURE FLAGS -->
+    <div id="tab-mobile" class="tab-pane" style="display:none;">
+      <div class="cfg-card">
+        <h3>📱 Mobile App Dynamic Toggles (/api/m/config)</h3>
+        <p class="subtitle">Control Android app interface components, tracking rules, and hardware binding in real time.</p>
+        
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'mobile' and c.data_type == 'boolean' and c.key != 'mobile.banner_announcement_active' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <h4 style="margin:24px 0 12px;font-size:14px;color:var(--ink);">Engine Tolerances & Numeric Limits</h4>
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'mobile' and c.data_type == 'integer' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              <input type="number" name="cfg_{{ c.key }}" value="{{ c.value }}" class="cfg-input">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <h4 style="margin:24px 0 12px;font-size:14px;color:var(--ink);">Mobile Home Screen Announcement Broadcast</h4>
+        <div style="background:#fafbfc;border:1px solid var(--line);border-radius:6px;padding:16px;">
+          {% set b_act = configs|selectattr('key','equalto','mobile.banner_announcement_active')|first %}
+          {% set b_txt = configs|selectattr('key','equalto','mobile.banner_announcement_text')|first %}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <strong>Display Announcement Card on Mobile Home Screen</strong>
+              <div style="font-size:12px;color:var(--mute);">Pushes an urgent banner card to all active Android mobile users.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="cfg_{{ b_act.key }}" value="true" {% if b_act.value|lower in ('true','1') %}checked{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div>
+            <input type="text" name="cfg_{{ b_txt.key }}" value="{{ b_txt.value }}" placeholder="e.g. Office closed on Friday, Nov 1 for Diwali celebrations. Happy Holidays!" class="cfg-input-text">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: WEB MANAGEMENT & REVIEW -->
+    <div id="tab-web" class="tab-pane" style="display:none;">
+      <div class="cfg-card">
+        <h3>💻 Attendance Review & Management (/review)</h3>
+        <p class="subtitle">Workflow controls for day-by-day punch verification, PM overrides, and audit trails.</p>
+        
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'web_review' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              {% if c.data_type == 'boolean' %}
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+              {% else %}
+              <input type="number" name="cfg_{{ c.key }}" value="{{ c.value }}" class="cfg-input">
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <h4 style="margin:24px 0 12px;font-size:14px;color:var(--ink);">Approvals & Workflows</h4>
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'web_approvals' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: LEAVES & POLICIES -->
+    <div id="tab-policy" class="tab-pane" style="display:none;">
+      <div class="cfg-card">
+        <h3>📋 Leave Engine & Policies (/leaves)</h3>
+        <p class="subtitle">Company rules for advance leave submission, half-day leaves, and auto-escalations.</p>
+        
+        <div class="cfg-grid">
+          {% for c in configs if c.category == 'web_leaves' %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              {% if c.data_type == 'boolean' %}
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+              {% else %}
+              <input type="number" name="cfg_{{ c.key }}" value="{{ c.value }}" class="cfg-input">
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <h4 style="margin:24px 0 12px;font-size:14px;color:var(--ink);">Projects & Team Baseline Shifts</h4>
+        <div class="cfg-grid">
+          {% for c in configs if c.category in ('web_projects', 'web_team') %}
+          <div class="cfg-row">
+            <div class="cfg-info">
+              <div class="cfg-title">{{ c.label }}</div>
+              <div class="cfg-desc">{{ c.description }}</div>
+            </div>
+            <div>
+              {% if c.data_type == 'boolean' %}
+              <label class="switch">
+                <input type="checkbox" name="cfg_{{ c.key }}" value="true" {% if c.value|lower in ('true','1') %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+              {% elif c.data_type == 'integer' %}
+              <input type="number" name="cfg_{{ c.key }}" value="{{ c.value }}" class="cfg-input">
+              {% else %}
+              <input type="text" name="cfg_{{ c.key }}" value="{{ c.value }}" class="cfg-input" style="text-align:center;">
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:right;margin-top:20px;">
+      <button type="submit" class="btn" style="padding:12px 28px;font-size:15px;font-weight:700;">Save All Configuration Changes</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function showTab(tabName) {
+  document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.cfg-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tabName).style.display = 'block';
+  event.currentTarget.classList.add('active');
+}
+
+function sendTestEmail() {
+  var email = document.getElementById('test-email-input').value.trim();
+  var st = document.getElementById('test-email-status');
+  if (!email) {
+    alert('Please enter an email address for testing.');
+    return;
+  }
+  st.innerHTML = '<span style="color:#2563eb;">Sending...</span>';
+  
+  var fd = new FormData();
+  fd.append('csrf', '{{ csrf }}');
+  fd.append('email', email);
+
+  fetch('{{ url_for("settings_test_email") }}', {
+    method: 'POST',
+    body: fd
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      st.innerHTML = '<span style="color:#166534;">✓ Sent successfully!</span>';
+    } else {
+      st.innerHTML = '<span style="color:#dc2626;">✕ Failed: ' + data.message + '</span>';
+    }
+  })
+  .catch(err => {
+    st.innerHTML = '<span style="color:#dc2626;">✕ Error: ' + err + '</span>';
+  });
+}
+</script>
+{% endblock %}

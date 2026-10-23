@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block body %}
+<form class="bar" method="get"><label>Month <input type="month" name="month" value="{{month}}" onchange="this.form.submit()"></label>
+<label>Project <select name="project" onchange="this.form.submit()"><option value="">All my projects</option>{% for p in projects %}<option value="{{p.id}}" {{ 'selected' if p.id==pid }}>{{p.name}}</option>{% endfor %}</select></label>
+<a class="btn alt" href="{{ url_for('export_monthly', month=month, project=pid) }}">Monthly report (Excel)</a></form>
+<div class="sec"><table><tr><th>Engineer</th>{% for d in days %}<th class="code"><a href="{{ url_for('summary', date=d.iso) }}" title="Open summary for {{d.iso}}">{{d.n}}<br>{{d.wd[:2]}}</a></th>{% endfor %}
+<th>Present</th><th>Late</th><th>Short</th><th>Planned lv</th><th>Unplanned lv</th><th>Absent</th><th>Avg hrs</th></tr>
+{% for x in data %}{% set t=x.tot %}<tr><td>{{x.name}}<br><span class="mute">{{x.projects}}</span></td>
+{% for c in x.codes %}<td class="code" style="background:#{{ fills.get(c,'FFFFFF') }}">{{c}}</td>{% endfor %}
+<td>{{t.P+t.LT+t.SH+t.LS}}</td><td>{{t.LT+t.LS}}</td><td>{{t.SH+t.LS}}</td><td>{{t.PL}}</td><td>{{t.UL + t.L}}</td><td>{{t.A}}</td><td>{{x.avg}}</td></tr>
+{% else %}<tr><td class="none">No team members yet.</td></tr>{% endfor %}</table></div>
+<p class="mute">{% for c in codes %}<span style="background:#{{c[2]}};padding:1px 6px;border:1px solid #d9dee7">{{c[0]}}</span> {{c[1]}} &nbsp; {% endfor %}<br>Click a day number to open that day's summary.</p>
+{% endblock %}

@@ -1,0 +1,58 @@
+<div class="site-form-grid" style="display:flex;flex-direction:column;gap:12px">
+  <!-- Row 1: Site Name, Coordinates & Use My Location -->
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px">
+    <label style="flex:2;min-width:240px">
+      Site Name <span class="mute">(e.g. Main Office / Campus Annex)</span><br>
+      <input type="text" name="name" value="{{s.name}}" maxlength="80" required pattern="{{pat.project}}" style="width:100%;margin-top:4px" placeholder="e.g. UPSC Dholpur House (HQ)">
+    </label>
+    <label style="flex:1;min-width:130px">
+      Latitude<br>
+      <input type="text" name="lat" value="{{s.lat}}" required inputmode="decimal" class="lat" style="width:100%;margin-top:4px" placeholder="28.6080">
+    </label>
+    <label style="flex:1;min-width:130px">
+      Longitude<br>
+      <input type="text" name="lon" value="{{s.lon}}" required inputmode="decimal" class="lon" style="width:100%;margin-top:4px" placeholder="77.2270">
+    </label>
+    <div style="margin-bottom:1px">
+      <button type="button" class="alt" onclick="useHere(this)" style="padding:7px 14px;white-space:nowrap">📍 Use my location</button>
+    </div>
+  </div>
+
+  <!-- Row 2: Boundary Radius, Dwell Times & Beacon Check -->
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px">
+    <label style="flex:1;min-width:120px">
+      Radius (metres)<br>
+      <input type="number" name="radius" value="{{s.radius}}" min="{{mobile.radius_min}}" max="{{mobile.radius_max}}" required style="width:100%;margin-top:4px">
+    </label>
+    <label style="flex:1;min-width:150px">
+      Arrival wait (minutes)<br>
+      <input type="number" name="dwell_in" value="{{s.dwell_in}}" min="1" max="60" required style="width:100%;margin-top:4px">
+    </label>
+    <label style="flex:1;min-width:150px">
+      Leaving wait (minutes)<br>
+      <input type="number" name="dwell_out" value="{{s.dwell_out}}" min="1" max="120" required style="width:100%;margin-top:4px">
+    </label>
+    <label style="flex:1.5;min-width:190px">
+      Wi-Fi / Bluetooth check<br>
+      <select name="beacon_mode" style="width:100%;margin-top:4px">
+        <option value="off" {{ 'selected' if s.beacon_mode=='off' }}>Off (GPS Only)</option>
+        <option value="any" {{ 'selected' if s.beacon_mode=='any' }}>Any one from beacon list</option>
+        <option value="all" {{ 'selected' if s.beacon_mode=='all' }}>All beacons in list</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Row 3: Optional Beacon Identifiers -->
+  <div style="margin-top:2px">
+    <label style="display:block">
+      Wi-Fi or Bluetooth identifiers <span class="mute">(comma-separated BSSIDs or BLE MAC addresses; used only when check is not Off)</span><br>
+      <input type="text" name="beacon_ids" value="{{ s.beacon_ids or '' }}" placeholder="AA:BB:CC:DD:EE:FF, OFFICE-WIFI" style="width:100%;margin-top:4px">
+    </label>
+  </div>
+
+  <div class="mute" style="margin-top:-2px">
+    <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/#map=17/{{ s.lat or 28.6 }}/{{ s.lon or 77.2 }}">Open map</a> to look up coordinates (right-click &rarr; "Show address"), or click "Use my location" while standing at the site.
+  </div>
+</div>
+<script>if(!window.useHere){window.useHere=function(b){var f=b.closest('form');if(!navigator.geolocation){alert('This browser cannot give a location.');return}
+navigator.geolocation.getCurrentPosition(function(p){f.querySelector('.lat').value=p.coords.latitude.toFixed(6);f.querySelector('.lon').value=p.coords.longitude.toFixed(6)},function(){alert('Location not allowed. Type the latitude and longitude instead.')})}}</script>

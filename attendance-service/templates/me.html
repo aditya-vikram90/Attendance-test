@@ -1,0 +1,380 @@
+{% extends "base.html" %}{% block body %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+  <div>
+    <h2 style="margin:0 0 2px">{{ info.name }}</h2>
+    <p class="mute" style="margin:0">{{ info.role }}{% if info.role and info.projects %} · {% endif %}{{ info.projects }}</p>
+  </div>
+  <span class="mute">Your shift starts <b>{{ (active_tm.shift_start if active_tm else info.shift) or shift_start }}</b> · grace {{grace}} min · shift {{'%g'|format(shift_hours)}} h incl. lunch</span>
+</div>
+
+{# ---------------- Task 1.0: Employee Daily Attendance Self-Entry (Same Tabular Form as PM/TL) ---------------- #}
+{% set dis = 'disabled' if today_locked_reason else '' %}
+<form method="post" action="{{ url_for('me_attendance') }}" style="margin-bottom:18px">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="day" value="{{ day }}">
+
+  <div class="sec" style="margin-bottom:8px;border-left:4px solid var(--nav)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:#f8fafc">
+      <div>
+        <b style="font-size:14px">Enter Today's Attendance</b>
+        <span class="mute" style="margin-left:8px">{{ day }}{% if active_tm %} · Project: <b>{{ active_tm.project_name }}</b>{% endif %}</span>
+      </div>
+      <div>
+        {% if today_rec and (today_rec.in_time or today_rec.leave_type or today_rec.remarks) %}
+          {% set app_st = today_rec.approval_status or 'Approved' %}
+          {% if app_st == 'Rejected' %}
+            <span class="pill" style="background:var(--red);color:#fff">Submission Rejected by PM/TL</span>
+          {% elif app_st == 'Pending' %}
+            <span class="pill" style="background:var(--amber);color:#fff">Submitted · Pending PM/TL Approval</span>
+          {% else %}
+            <span class="pill Present">✓ Verified / Approved by PM/TL</span>
+          {% endif %}
+        {% else %}
+          <span class="pill" style="background:#667085;color:#fff">Not Logged Yet</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if today_rec and (today_rec.approval_status == 'Rejected') %}
+    <div style="margin:10px 12px 6px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:13px">
+      <strong>⚠️ Attendance Submission Rejected by PM/TL:</strong> {{ today_rec.rejection_reason or 'Please correct your details and resubmit.' }}
+      <div class="mute" style="color:#b91c1c;margin-top:2px">Review and update your In/Out times or remarks below, then click "Resubmit Attendance".</div>
+    </div>
+    {% endif %}
+
+    <table>
+      <tr>
+        <th>Status</th>
+        <th>In</th>
+        <th>Out</th>
+        <th>Hours</th>
+        <th>Late by</th>
+        <th>Short by</th>
+        <th>Leave type</th>
+        <th>Planned?</th>
+        <th>Task handled by</th>
+        <th>Remarks</th>
+      </tr>
+      <tr>
+        <td>
+          {% set ev_st = today_ev.status if today_ev else 'Absent' %}
+          <span class="pill {{ 'Leave' if ev_st=='On Leave' else ev_st }}">
+            {{ 'Absent (No info)' if ev_st=='Absent' else ev_st }}
+          </span>
+        </td>
+        <td>
+          <div class="inline">
+            <input type="time" id="me_in_time" name="in_time" value="{{ today_rec.in_time or '' }}" {{ dis }}>
+            {% if not dis %}<button type="button" class="alt" style="padding:4px 7px;font-size:11px" onclick="setNow('me_in_time')" title="Fill current time">Now</button>{% endif %}
+          </div>
+        </td>
+        <td>
+          <div class="inline">
+            <input type="time" id="me_out_time" name="out_time" value="{{ today_rec.out_time or '' }}" {{ dis }}>
+            {% if not dis %}<button type="button" class="alt" style="padding:4px 7px;font-size:11px" onclick="setNow('me_out_time')" title="Fill current time">Now</button>{% endif %}
+          </div>
+        </td>
+        <td>{{ today_hm.worked }}</td>
+        <td class="warn">{{ today_hm.late }}</td>
+        <td class="warn">{{ today_hm.short }}</td>
+        <td>
+          <select name="leave_type" id="me_leave_type" {{ dis }}>
+            <option value="">-</option>
+            {% for t in leave_types %}
+              <option value="{{ t }}" {{ 'selected' if today_rec.leave_type == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="planned" id="me_planned" {{ dis }}>
+            <option value="">-</option>
+            {% for t in ['Planned', 'Unplanned'] %}
+              <option value="{{ t }}" {{ 'selected' if today_rec.planned == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="cover" id="me_cover" {{ dis }}>
+            <option value="">-</option>
+            {% for m in covers %}
+              <option value="{{ m.name }}" {{ 'selected' if today_rec.handled_by == m.name }}>{{ m.name }}</option>
+            {% endfor %}
+            {% if today_rec.handled_by and today_rec.handled_by not in covers|map(attribute='name')|list %}
+              <option value="{{ today_rec.handled_by }}" selected>{{ today_rec.handled_by }}</option>
+            {% endif %}
+          </select>
+        </td>
+        <td>
+          <input type="text" name="remarks" value="{{ today_rec.remarks or '' }}" maxlength="300" placeholder="Optional remarks" {{ dis }}>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p style="margin:6px 0 0">
+    {% if not dis %}
+      <button type="submit">{{ 'Resubmit Attendance' if (today_rec and today_rec.approval_status == 'Rejected') else ('Update Today\'s Attendance' if (today_rec and today_rec.in_time) else 'Save Today\'s Attendance') }}</button>
+      <span class="mute" style="margin-left:8px">
+        Enter your In/Out times, or for leave: choose the type, mark Planned or Unplanned, and pick who handles the tasks. Entries stay marked as <b>Pending Approval</b> until verified by your PM/TL.
+      </span>
+    {% else %}
+      <span class="mute" style="color:#1e293b;font-weight:500">🔒 {{ today_locked_reason }} Contact your PM/TL if any modification is needed.</span>
+    {% endif %}
+  </p>
+</form>
+
+
+<style>
+details.acc-sec > summary {
+  list-style: none;
+}
+details.acc-sec > summary::-webkit-details-marker {
+  display: none;
+}
+details.acc-sec[open] > summary .acc-arrow {
+  transform: rotate(180deg);
+}
+details.acc-sec summary:hover {
+  background: #f1f5f9 !important;
+}
+</style>
+
+<!-- Accordion Section 1: Raise an Attendance Objection / Grievance -->
+<details class="sec acc-sec" style="margin-bottom:18px;border-left:4px solid var(--blue)">
+  <summary style="padding:10px 14px;background:#f8fafc;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <b style="font-size:14px;color:var(--ink)">Raise an Attendance Objection / Grievance</b>
+      {% if wf_obj %}<span class="pill" style="font-size:11px;padding:2px 8px;background:#e2e8f0;color:#334155;margin-left:8px">{{ wf_obj|length }} logged</span>{% endif %}
+      <div class="mute" style="margin-top:2px;font-weight:normal">Notice an error in your past record or shift timing? Click to submit an objection with corrected times.</div>
+    </div>
+    <span class="acc-arrow mute" style="font-size:13px;transition:transform 0.2s;display:inline-block;padding:2px 6px">▼</span>
+  </summary>
+  <div style="padding:12px;border-top:1px solid var(--line)">
+    <form method="post" action="{{ url_for('wf_e_objection') }}" class="inline" style="flex-wrap:wrap;gap:10px">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <label>Date <input type="date" name="day" max="{{today}}" required></label>
+      <label>Correct IN <input type="time" name="req_in"></label>
+      <label>Correct OUT <input type="time" name="req_out"></label>
+      <input name="body" placeholder="Describe the discrepancy or reason for correction..." maxlength="500" required style="min-width:280px;flex:1">
+      <button class="alt" style="white-space:nowrap">Raise Objection</button>
+    </form>
+    {% if wf_obj %}
+    <div style="margin-top:14px">
+      <b style="font-size:13px;color:#475569">Your Recent Objections:</b>
+      <table style="margin-top:6px">
+        <tr><th>Day</th><th>Discrepancy / Reason</th><th>Requested Correction</th><th>Status</th><th>PM/TL Decision & Remarks</th></tr>
+        {% for o in wf_obj %}
+        <tr>
+          <td><b>{{o.day}}</b></td>
+          <td class="wrap">{{o.body}}</td>
+          <td>{{ ('IN ' ~ (o.req_in or '-') ~ ' / OUT ' ~ (o.req_out or '-')) if (o.req_in or o.req_out) else '—' }}</td>
+          <td><span class="pill {{ 'Present' if o.status=='accepted' else ('Absent' if o.status=='rejected' else '') }}">{{ 'Waiting for PM/TL' if o.status=='open' else o.status|capitalize }}</span></td>
+          <td class="wrap">{% if o.reply %}<b>{{o.reply}}</b>{% else %}<span class="mute">Under review</span>{% endif %}{% if o.applied %}<br><span class="mute" style="color:var(--green);font-weight:600">✓ Applied to sheet: {{o.applied}}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</details>
+
+{% if lv_mine is defined %}
+<details class="sec acc-sec" style="margin-bottom:18px;border-left:4px solid var(--nav)">
+  <summary style="padding:10px 14px;background:#f8fafc;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <b style="font-size:14px;color:var(--ink)">Apply for Leave</b>
+      {% if lv_mine %}<span class="pill" style="font-size:11px;padding:2px 8px;background:#e2e8f0;color:#334155;margin-left:8px">{{ lv_mine|length }} request{{ 's' if lv_mine|length > 1 }}</span>{% endif %}
+      <div class="mute" style="margin-top:2px;font-weight:normal">Applied at least {{lv_planned_days}} days before the first day = <b>Planned</b>, otherwise <b>Unplanned</b>. Approver decides within {{lv_hours}} hours or it escalates up the PM chain.</div>
+    </div>
+    <span class="acc-arrow mute" style="font-size:13px;transition:transform 0.2s;display:inline-block;padding:2px 6px">▼</span>
+  </summary>
+  <div style="padding:12px;border-top:1px solid var(--line)">
+    <form method="post" action="{{ url_for('wf_e_leave_apply') }}" id="lvform" class="inline" style="flex-wrap:wrap;gap:10px">
+      <input type="hidden" name="csrf" value="{{csrf}}">
+      <label>From <input type="date" name="from" id="lvf" min="{{today}}" required style="width:125px"></label>
+      <label>To <input type="date" name="to" id="lvt" min="{{today}}" style="width:125px"></label>
+      <label>Type 
+        <select name="leave_type" required>
+          {% for t in lv_types %}<option value="{{t}}">{{t}}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Task handled by
+        <select name="cover" style="max-width:160px">
+          <option value="">— None —</option>
+          {% for m in covers %}
+            <option value="{{ m.name }}">{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <input name="reason" placeholder="Reason for leave" maxlength="300" style="min-width:140px;flex:1">
+      <button style="white-space:nowrap">Apply for Leave</button>
+    </form>
+    <div id="lvinfo" style="display:none;margin:10px 0 6px;padding:8px 12px;border-radius:6px"></div>
+
+    <div style="margin-top:14px">
+      <b style="font-size:13px;color:#475569">My Leave Applications:</b>
+      <table style="margin-top:6px">
+        <tr><th>Dates</th><th>Type</th><th>Planning</th><th>Cover</th><th>Status</th><th>Note / Decision</th><th>Actions</th></tr>
+        {% for r in lv_mine %}
+        <tr>
+          <td><b>{{r.from_date}}</b> to <b>{{r.to_date}}</b></td>
+          <td>{{r.leave_type}}</td>
+          <td class="mute">{{r.planned}}{% if r.is_extension %} · extension{% endif %}{% if r.early_join %} · joined early {{r.early_join}}{% endif %}</td>
+          <td>{{r.handled_by or '—'}}</td>
+          <td>
+            {% if r.status == 'approved' %}
+              <span class="pill Present">Approved</span>
+            {% elif r.status == 'rejected' %}
+              <span class="pill Absent">Rejected</span>
+            {% elif r.status == 'cancelled' %}
+              <span class="pill" style="background:#868e96;color:#fff">Cancelled</span>
+            {% elif r.status == 'modification' %}
+              <span class="pill" style="background:#0284c7;color:#fff">Change suggested</span>
+            {% elif r.status == 'withdraw_requested' %}
+              <span class="pill" style="background:#d9480f;color:#fff">Asked to withdraw</span>
+            {% else %}
+              <span class="pill" style="background:#e67700;color:#fff">Waiting for {{ r.assigned_to or 'approver' }}</span>
+            {% endif %}
+            {% if r.capacity_full and r.status=='pending' %} <span class="warn" style="font-size:11px;display:block;margin-top:2px">(capacity full)</span>{% endif %}
+          </td>
+          <td class="wrap">{{r.note or ''}}{% if r.status=='modification' %}<br>Suggested: <b>{{r.suggest_from}} to {{r.suggest_to}}</b>{% endif %}</td>
+          <td>
+            {% if r.status=='modification' %}
+              <form method="post" action="{{ url_for('wf_e_leave_answer') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="id" value="{{r.id}}"><button name="action" value="accept">Accept new dates</button> <button class="alt" name="action" value="decline">Decline</button></form>
+            {% endif %}
+            {% if r.can_cancel %}
+              <form method="post" action="{{ url_for('wf_e_leave_cancel') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="id" value="{{r.id}}"><button class="alt">Cancel</button></form>
+            {% endif %}
+            {% if r.running %}
+              <form method="post" action="{{ url_for('wf_e_leave_early') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="id" value="{{r.id}}"><button>I am back early</button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="none">No leave requests yet.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    {% if lv_team %}
+    <div style="margin-top:14px">
+      <b style="font-size:13px;color:#475569">Colleagues on Leave on Upcoming Dates:</b>
+      <table style="margin-top:6px">
+        <tr><th>Colleague</th><th>From</th><th>To</th><th>Status</th></tr>
+        {% for r in lv_team %}
+        <tr><td>{{r.name}}</td><td>{{r.from_date}}</td><td>{{r.to_date}}</td><td>{{ 'Approved' if r.status=='approved' else 'Waiting' }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</details>
+<script>(function(){
+var f=document.getElementById('lvf'),t=document.getElementById('lvt'),box=document.getElementById('lvinfo'),form=document.getElementById('lvform'),full=false;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function chk(){if(!f||!f.value)return;var to=(t&&t.value)?t.value:f.value;fetch({{ url_for('wf_e_leave_check')|tojson }}+'?from='+f.value+'&to='+to,{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
+ var h='';full=!!j.capacity_full;if(j.others&&j.others.length)h+='<b>Team-mates already applied for these days:</b> '+j.others.map(function(o){return esc(o.name)+' ('+o.from+' to '+o.to+', '+(o.status=='approved'?'approved':'waiting')+')'}).join('; ')+'<br>';
+ if(j.text)h+='<b style="color:#b02a00">Capacity: </b>'+esc(j.text);box.style.display=h?'block':'none';box.style.background=full?'#ffe3e3':'#eef4ff';box.innerHTML=h}).catch(function(){})}
+if(f){f.addEventListener('change',function(){if(t&&(!t.value||t.value<f.value))t.value=f.value;chk()});}
+if(t){t.addEventListener('change',chk);}
+if(form){form.addEventListener('submit',function(e){if(full&&!confirm('Team capacity is full on some of these days. Your TL/PM may ask you to withdraw, and a senior PM must approve. Apply anyway?'))e.preventDefault()});}
+})();</script>
+{% endif %}
+
+<form class="bar" method="get">
+  <label>Month <input type="month" name="month" value="{{month}}" onchange="this.form.submit()"></label>
+</form>
+
+<div class="kpis">{% for k,v in tot.items() %}<div class="kpi"><span>{{k}}</span><b>{{v}}</b></div>{% endfor %}</div>
+
+<div class="sec">
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Project</th>
+      <th>Status</th>
+      <th>Approval</th>
+      <th>In</th>
+      <th>Out</th>
+      <th>Hours in office</th>
+      <th>Late by</th>
+      <th>Short by</th>
+      <th>Leave</th>
+      <th>Task handled by</th>
+      <th>Remarks</th>
+    </tr>
+    {% for x in rows %}
+    <tr>
+      <td>{{x.day}} <span class="mute">{{x.wd}}</span></td>
+      <td>{% if x.project and x.project != '—' %}<span style="font-weight:500">{{x.project}}</span>{% else %}<span class="mute">—</span>{% endif %}</td>
+      <td>{% if x.cls and x.cls != 'mute' %}<span class="pill {{x.cls}}">{{x.status}}</span>{% else %}<span class="mute">{{x.status}}</span>{% endif %}</td>
+      <td>
+        {% if x.r and (x.r.in_time or x.r.leave_type or x.r.remarks) %}
+          {% if (x.r.approval_status or '') == 'Rejected' %}
+            <span class="pill" style="background:var(--red);font-size:11px" title="Rejected: {{ x.r.rejection_reason or 'Please correct and resubmit' }}">Rejected</span>
+          {% elif (x.r.approval_status or 'Approved') == 'Pending' %}
+            <span class="pill" style="background:var(--amber);font-size:11px">Pending Approval</span>
+          {% else %}
+            <span class="mute" style="color:var(--green);font-weight:600">✓ Verified</span>
+          {% endif %}
+        {% else %}
+          <span class="mute">—</span>
+        {% endif %}
+      </td>
+      <td>{{x.r.in_time or ''}}</td>
+      <td>{{x.r.out_time or ''}}</td>
+      <td>{{x.worked}}</td>
+      <td class="warn">{{x.late}}</td>
+      <td class="warn">{{x.short}}</td>
+      <td>{{x.r.leave_type or ''}}{% if x.r.planned %} <span class="mute">({{x.r.planned}})</span>{% endif %}</td>
+      <td>{{x.r.handled_by or ''}}</td>
+      <td class="wrap">{{x.r.remarks or ''}}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="12" class="none">Nothing for this month yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+<p class="mute">You can log your own daily attendance for today above. Past dates and verified records are locked — contact your TL/PM if a correction is needed.</p>
+
+<script>
+const awayToday = new Set({{ away|tojson }});
+function syncMeCover() {
+  const sel = document.getElementById('me_cover');
+  if (!sel) return;
+  [...sel.options].forEach(o => {
+    if (!o.value) return;
+    const bad = awayToday.has(o.value);
+    o.disabled = bad;
+    o.textContent = o.value + (bad ? ' (on leave)' : '');
+  });
+  if (sel.value && awayToday.has(sel.value)) {
+    sel.value = '';
+    sel.style.borderColor = '#c00000';
+    sel.title = 'The person chosen is on leave today - pick someone else';
+  }
+}
+syncMeCover();
+
+const lvSel = document.getElementById('me_leave_type');
+const plSel = document.getElementById('me_planned');
+if (lvSel && plSel) {
+  lvSel.addEventListener('change', function() {
+    if (!this.value) {
+      plSel.value = '';
+    } else if (!plSel.value) {
+      plSel.value = 'Unplanned';
+    }
+  });
+}
+
+function setNow(inputId) {
+  var el = document.getElementById(inputId);
+  if (!el || el.disabled) return;
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2, '0');
+  var mm = String(now.getMinutes()).padStart(2, '0');
+  el.value = hh + ':' + mm;
+}
+</script>
+{% endblock %}

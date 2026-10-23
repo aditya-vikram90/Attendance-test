@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}
+<div class="sec" style="margin-top:30px;padding:24px 20px;text-align:center">
+  <p style="font-size:15px;margin:0 0 16px">{{ msg|safe }}</p>
+  {% if role %}<p><a class="btn" href="{{ url_for('entry') }}">Open attendance</a></p>{% endif %}
+</div>
+{% endblock %}

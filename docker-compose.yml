@@ -1,0 +1,83 @@
+services:
+  # 1. PostgreSQL 17 Replica (Databases: users, attendance, keycloak, openproject)
+  openproject-db:
+    image: docker.io/library/postgres:17
+    container_name: openproject-db
+    hostname: openproject-db
+    extra_hosts:
+      - "openproject-db:127.0.0.1"
+      - "keycloak:127.0.0.1"
+    environment:
+      POSTGRES_USER: openproject
+      POSTGRES_PASSWORD: 52d6616efa2211ce07f9d4415ae04773f988f8a8949d2799
+      POSTGRES_DB: openproject
+      TZ: Asia/Kolkata
+    ports:
+      - "5432:5432"
+      - "8085:8085"
+      - "8000:8000"
+      - "8090:8000"
+    volumes:
+      - replica_pgdata:/var/lib/postgresql/data
+      - ./local-replica/init-replica.sh:/docker-entrypoint-initdb.d/01-init-replica.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance && pg_isready -U keycloak -d keycloak && pg_isready -U users_admin -d users"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 2. Keycloak Identity Provider (with Custom Attendance User Storage SPI)
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    network_mode: "service:openproject-db"
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: KeycloakAdmin2026!
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://openproject-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: KC_Db_Pass_2026_Sec!
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8085"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME_URL: http://localhost:8085/auth/
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8085/auth/
+      KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - ./local-replica/providers/keycloak-attendance-user-storage-1.0.0.jar:/opt/keycloak/providers/keycloak-attendance-user-storage-1.0.0.jar:ro
+      - ./local-replica/imports:/opt/keycloak/data/import:ro
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+
+  # 3. Attendance Flask Service (Live-mounted local source code)
+  attendance:
+    build:
+      context: ./attendance-service
+      dockerfile: Containerfile
+    image: localhost/attendance:latest
+    container_name: attendance
+    network_mode: "service:openproject-db"
+    environment:
+      BASE_URL: http://localhost:8000
+      SECRET_KEY: 248039d9f584e2a859c738ab79116e0329fc09db488c9182390f77bc9568912d
+      DATABASE_URL: postgresql://attendance:Att3nd_Pass_2026_Sec!@openproject-db:5432/attendance
+      OIDC_ISSUER: http://localhost:8085/auth/realms/keenable
+      KEYCLOAK_INTERNAL_URL: http://localhost:8085/auth
+      OIDC_CLIENT_ID: attendance
+      OIDC_CLIENT_SECRET: Att3nd_Client_Secret_2026!
+      DEV_MODE: "0"
+      SHIFT_START: "09:30"
+      GRACE_MIN: "15"
+      WEEKLY_OFF: "Sat,Sun"
+      TZ_NAME: Asia/Kolkata
+    volumes:
+      - ./attendance-service:/app:rw
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+
+volumes:
+  replica_pgdata:

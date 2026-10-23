@@ -1,0 +1,151 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendance</title>
+<style>
+:root{--ink:#1c2533;--mute:#667085;--line:#d9dee7;--bg:#f5f6f8;--card:#fff;--nav:#1f3864;--red:#c00000;--blue:#2e75b6;--amber:#bf8f00;--orange:#c55a11;--green:#548235}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{background:var(--nav);color:#fff;padding:10px 20px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header b{font-size:16px}header a{color:#dfe7f5;text-decoration:none}header a.on,header a:hover{color:#fff;text-decoration:underline}header .sp{flex:1}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:-1px}.tabs a{padding:8px 14px;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;background:#e9ecf1;color:var(--ink);text-decoration:none}
+.tabs a.on{background:var(--card);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:0 6px 6px 6px;overflow-x:auto}
+table{border-collapse:collapse;width:100%}th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{background:#eef1f5;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#475467}
+td.wrap{white-space:normal;min-width:160px}
+input,select,button{font:inherit;padding:6px 8px;border:1px solid #b8c0cc;border-radius:5px;background:#fff}
+input[type=text]{width:100%;min-width:150px}button,.btn{background:var(--nav);color:#fff;border-color:var(--nav);cursor:pointer;text-decoration:none;padding:6px 12px;border-radius:5px;display:inline-block}
+.btn.alt,button.alt{background:#fff;color:var(--nav)}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;color:#fff}
+.Absent{background:var(--red)}.Leave{background:var(--blue)}.Present{background:var(--green)}.warn{color:var(--orange);font-weight:600}
+.flash{padding:9px 12px;border-radius:5px;margin-bottom:10px}.flash.ok{background:#e2efda}.flash.err{background:#fde3e0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--nav);border-radius:6px;padding:10px 12px}.kpi span{display:block;font-size:12px;color:var(--mute)}.kpi b{font-size:24px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:6px;margin-bottom:16px;overflow-x:auto}.sec h2{margin:0;padding:9px 12px;font-size:14px;color:#fff}
+.none{padding:10px 12px;color:var(--mute)}details{margin-top:2px}summary{cursor:pointer;color:var(--blue)}details.act{display:inline-block;vertical-align:top;margin:0 0 0 10px}details.act[open]{display:block;margin:8px 0 4px;padding:10px;background:#f5f6f8;border-radius:5px}ul.t{margin:4px 0 0;padding-left:18px;white-space:normal}
+.code{text-align:center;padding:5px 4px;font-size:12px;min-width:30px}.inline{display:inline-flex;gap:6px;align-items:center}.off{opacity:.55}
+.mute{color:var(--mute);font-size:12px}
+</style></head><body>
+<header><b>Attendance</b>
+{% if role and role!='engineer' %}<a href="{{ url_for('entry', date=day|default('')) }}" class="{{ 'on' if request.endpoint=='entry' }}">Enter attendance</a>
+<a href="{{ url_for('summary', date=day|default('')) }}" class="{{ 'on' if request.endpoint=='summary' }}">Summary</a>
+<a href="{{ url_for('trends') }}" class="{{ 'on' if request.endpoint=='trends' }}">Trends</a>
+<a href="{{ url_for('history') }}" class="{{ 'on' if request.endpoint=='history' }}">History</a>
+<a href="{{ url_for('review') }}" class="{{ 'on' if request.endpoint=='review' }}">Phone check-ins</a>
+<a href="{{ url_for('wf_approvals') }}" class="{{ 'on' if request.endpoint=='wf_approvals' }}">Approvals{% if wf_pending %} <b style="background:#d9480f;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">{{wf_pending}}</b>{% endif %}</a>
+<a href="{{ url_for('wf_leaves') }}" class="{{ 'on' if request.endpoint in ('wf_leaves','wf_leave_report') }}">Leaves{% if wf_leave_pending %} <b style="background:#d9480f;color:#fff;border-radius:9px;padding:0 6px;font-size:11px">{{wf_leave_pending}}</b>{% endif %}</a>
+{% if role in ('admin','lead') %}<a href="{{ url_for('wf_setup') }}" class="{{ 'on' if request.endpoint=='wf_setup' }}">Project setup</a>{% endif %}
+{% if role in ('admin','lead') %}<a href="{{ url_for('team_page') }}" class="{{ 'on' if request.endpoint=='team_page' }}">My team</a>{% endif %}
+<a href="{{ url_for('projects_page') }}" class="{{ 'on' if request.endpoint=='projects_page' }}">Projects</a>
+{% if role=='admin' %}<a href="{{ url_for('access_page') }}" class="{{ 'on' if request.endpoint=='access_page' }}">Access</a>
+<a href="{{ url_for('settings_page') }}" class="{{ 'on' if request.endpoint=='settings_page' }}">Settings</a>{% endif %}
+{% endif %}{% if is_member %}<a href="{{ url_for('me') }}" class="{{ 'on' if request.endpoint=='me' }}">My attendance</a>{% endif %}
+{% if role=='engineer' %}
+<a href="{{ url_for('trends') }}" class="{{ 'on' if request.endpoint=='trends' }}">My trends</a>
+<a href="{{ url_for('summary') }}" class="{{ 'on' if request.endpoint=='summary' }}">My summary</a>
+{% endif %}
+{# {% if op_url %}<a href="{{ op_url }}">Back to OpenProject</a>{% endif %} #}
+<span class="sp"></span>{% if dev %}<form action="{{ url_for('dev_as') }}" class="inline"><input name="email" placeholder="demo: act as email" style="padding:3px 6px;width:190px"><button class="alt" style="padding:3px 8px">Go</button></form>{% endif %}
+{% if user %}<span>{{ user.name or user.email }}{% if role %} · {{ {'admin':'Admin','manager':'Manager','lead':'TL/PM','engineer':'Engineer'}[role] }}{% endif %}</span><a href="{{ url_for('logout') }}">Sign out</a>{% endif %}</header>
+<main>{% for cat,m in get_flashed_messages(with_categories=true) %}<div class="flash {{cat}}">{{m}}</div>{% endfor %}
+{% block body %}{% endblock %}</main>{% if user %}<div id="wfn" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+<div style="background:#fff;border-radius:10px;max-width:580px;width:92%;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)">
+<div style="padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;background:#f9fafb">
+  <div style="display:flex;align-items:center;gap:8px">
+    <h3 style="margin:0;font-size:16px;color:#111827">Notifications</h3>
+    <span id="wfn-count" style="background:#4b5563;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px">0</span>
+  </div>
+  <button id="wfn-ok" class="alt" style="font-size:12px;padding:3px 10px;border-radius:4px">Dismiss all</button>
+</div>
+<div id="wfn-list" style="overflow-y:auto;padding:12px 18px;max-height:calc(85vh - 70px)"></div>
+</div></div>
+<script>(function(){
+var csrf={{ csrf|tojson }}, box=document.getElementById('wfn'), list=document.getElementById('wfn-list'), countEl=document.getElementById('wfn-count'), ids=[];
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function getTheme(n){
+  var t=(n.title||'').toLowerCase(), k=(n.kind||'').toLowerCase();
+  if(t.includes('approved')||t.includes('accepted')||k==='approval_approved'||k==='leave_approved')
+    return {border:'#16a34a',bg:'#f0fdf4',badge:'APPROVED',badgeBg:'#dcfce7',badgeColor:'#15803d',btnColor:'#16a34a'};
+  if(t.includes('rejected')||t.includes('declined')||k==='approval_rejected'||k==='leave_rejected')
+    return {border:'#dc2626',bg:'#fef2f2',badge:'REJECTED',badgeBg:'#fee2e2',badgeColor:'#b91c1c',btnColor:'#dc2626'};
+  if(t.includes('cancelled')||k==='leave_cancelled')
+    return {border:'#6b7280',bg:'#f9fafb',badge:'CANCELLED',badgeBg:'#f3f4f6',badgeColor:'#374151',btnColor:'#4b5563'};
+  if(t.includes('withdraw')||t.includes('suggest')||t.includes('capacity')||t.includes('miss'))
+    return {border:'#d9480f',bg:'#fff4ec',badge:'ACTION REQUIRED',badgeBg:'#ffe8cc',badgeColor:'#d9480f',btnColor:'#d9480f'};
+  return {border:'#2563eb',bg:'#eff6ff',badge:'NOTICE',badgeBg:'#dbeafe',badgeColor:'#1d4ed8',btnColor:'#2563eb'};
+}
+function ack(itemIds, andUrl){
+  var fd=new FormData(); fd.append('csrf',csrf);
+  (Array.isArray(itemIds)?itemIds:[itemIds]).forEach(function(i){fd.append('id',i)});
+  fetch({{ url_for('wf_e_ack')|tojson }},{method:'POST',body:fd,credentials:'same-origin'}).then(function(){
+    var curPath = window.location.pathname;
+    if(andUrl){
+      var targetPath = andUrl.split('?')[0];
+      if(curPath === targetPath || (curPath === '/me' && targetPath.indexOf('/me') !== -1) || (curPath === '/leaves' && targetPath.indexOf('/leaves') !== -1) || (curPath === '/approvals' && targetPath.indexOf('/approvals') !== -1)){
+        window.location.reload();
+      } else {
+        window.location.href = andUrl;
+      }
+    } else {
+      if(curPath === '/me' || curPath === '/leaves' || curPath === '/approvals'){
+        window.location.reload();
+      } else {
+        poll();
+      }
+    }
+  }).catch(function(){
+    if(andUrl){ window.location.href=andUrl; }
+  });
+}
+function poll(){
+  fetch({{ url_for('wf_e_notices')|tojson }},{credentials:'same-origin',headers:{'Accept':'application/json'}})
+  .then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.notices)return;
+    ids=j.notices.map(function(n){return n.id});
+    if(!ids.length){box.style.display='none';return}
+    countEl.textContent=ids.length;
+
+    // Real-time page sync: If on /me and an approval/decision notice arrives, reload to sync data
+    if(window.location.pathname === '/me'){
+      var hasDecision = j.notices.some(function(n){
+        var k = (n.kind||'').toLowerCase(), t = (n.title||'').toLowerCase();
+        return k==='approval_approved'||k==='approval_rejected'||k==='leave_approved'||k==='leave_rejected'||t.includes('approved')||t.includes('rejected');
+      });
+      var sig = ids.slice().sort().join(',');
+      if(hasDecision && sessionStorage.getItem('synced_notices') !== sig){
+        sessionStorage.setItem('synced_notices', sig);
+        window.location.reload();
+        return;
+      }
+    }
+
+    list.innerHTML=j.notices.map(function(n){
+      var th=getTheme(n);
+      var openLink=n.link?'<a href="{{ request.script_root }}'+esc(n.link)+'" data-id="'+n.id+'" class="wfn-open" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:'+th.btnColor+';text-decoration:underline;margin-top:6px">Open &rarr;</a>':'';
+      return '<div style="border-left:4px solid '+th.border+';background:'+th.bg+';border-radius:4px;padding:9px 12px;margin:8px 0;display:flex;gap:10px;justify-content:space-between;align-items:flex-start">'
+        +'<div style="flex:1">'
+          +'<span style="display:inline-block;background:'+th.badgeBg+';color:'+th.badgeColor+';font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-bottom:3px">'+th.badge+'</span>'
+          +'<div style="font-weight:700;font-size:13px;color:#111">'+esc(n.title)+'</div>'
+          +'<div style="font-size:12px;color:#374151;margin-top:2px;white-space:pre-wrap;line-height:1.4">'+esc(n.body)+'</div>'
+          +openLink
+          +'<div style="color:#6b7280;font-size:11px;margin-top:4px">'+esc((n.created_at||'').replace('T',' ').slice(0,16))+'</div>'
+        +'</div>'
+        +'<button type="button" data-id="'+n.id+'" class="wfn-close" title="Dismiss" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;padding:0 4px">&times;</button>'
+      +'</div>';
+    }).join('');
+    list.querySelectorAll('.wfn-open').forEach(function(el){
+      el.onclick=function(e){ e.preventDefault(); ack(this.getAttribute('data-id'), this.getAttribute('href')); };
+    });
+    list.querySelectorAll('.wfn-close').forEach(function(el){
+      el.onclick=function(e){ e.preventDefault(); ack(this.getAttribute('data-id'), null); };
+    });
+    box.style.display='flex';
+  }).catch(function(){});
+}
+document.getElementById('wfn-ok').onclick=function(){
+  if(!ids.length)return;
+  ack(ids, null);
+  box.style.display='none';
+};
+poll(); setInterval(poll,8000);
+})();</script>{% endif %}</body></html>

@@ -1,0 +1,21 @@
+# Podman Quadlet unit -> copy to /etc/containers/systemd/attendance.container
+[Unit]
+Description=Attendance service (reads OpenProject)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/attendance:latest
+ContainerName=attendance
+EnvironmentFile=/etc/attendance/attendance.env
+Volume=attendance-data:/data
+PublishPort=127.0.0.1:8090:8000
+# Join the network the OpenProject database container is on, so "openproject-db" resolves.
+# Find its name with:  podman inspect openproject-db --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+# Network=openproject.network
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

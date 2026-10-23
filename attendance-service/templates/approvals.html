@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block body %}
+<h2 style="margin:0 0 4px">Approvals</h2>
+<p class="mute" style="margin:0 0 12px">Attendance marked by an engineer's phone or by the engineer waits here. It goes to the active PM/TL on your project's chain (PM0 &rarr; PM1 &rarr; PM2 &rarr; PM3) who is not on leave. If nobody decides within <b>{{hours}} hours</b>, it goes to the admin and the miss is counted against the person it was waiting for.</p>
+{% macro table(items, actions) %}<table><tr><th></th><th>Date</th><th>Engineer</th><th>Project</th><th>IN</th><th>OUT</th><th>From</th><th>Waiting for</th><th>Due</th></tr>
+{% for a in items %}<tr><td>{% if actions and a.mine %}<input type="checkbox" name="key" value="{{a.day}}|{{a.user_id}}" form="decide">{% endif %}</td>
+<td>{{a.day}}</td><td>{{a.name}}</td><td>{{a.project}}</td><td>{{a.in_time or '-'}}</td><td>{{a.out_time or '-'}}</td>
+<td>{{ 'Phone' if a.source=='phone' else 'Engineer' }}{% if a.events %} <span class="mute">({{a.events}} events)</span>{% endif %}</td>
+<td>{{ 'Admin' if a.status=='escalated' else (a.assigned_to or 'nobody set up') }}</td><td class="mute">{{ (a.due_at or '')[:16].replace('T',' ') }}</td></tr>
+{% else %}<tr><td colspan="9" class="none">Nothing here.</td></tr>{% endfor %}</table>{% endmacro %}
+<div class="sec"><h2>Waiting for approval ({{waiting|length}})</h2>{{ table(waiting, true) }}</div>
+{% if waiting or escalated %}<form id="decide" method="post" action="{{ url_for('wf_decide') }}" class="bar" style="margin-top:8px"><input type="hidden" name="csrf" value="{{csrf}}">
+<input name="note" placeholder="Note (optional / remarks if rejecting)" maxlength="300" style="min-width:260px"><button name="action" value="approve">Approve ticked</button> <button class="alt" name="action" value="reject">Reject ticked</button>
+<span class="mute">Tick the rows above, then choose.</span></form>{% endif %}
+<div class="sec" style="margin-top:16px"><h2 style="background:var(--orange)">Escalated to admin ({{escalated|length}})</h2>{{ table(escalated, true) }}</div>
+{% if objections %}<div class="sec" style="margin-top:16px"><h2 style="background:var(--blue)">Engineer objections ({{objections|length}})</h2><table><tr><th>Date</th><th>Engineer</th><th>Project</th><th>Objection</th><th>Asks for</th><th>Your decision</th></tr>
+{% for o in objections %}<tr><td>{{o.day}}</td><td>{{o.name}}</td><td>{{o.project}}</td><td class="wrap">{{o.body}}</td><td>{{ ('IN ' ~ (o.req_in or '-') ~ ' / OUT ' ~ (o.req_out or '-')) if (o.req_in or o.req_out) else '-' }}</td>
+<td>{% if can_reply %}<form method="post" action="{{ url_for('wf_objection_reply') }}" class="inline" style="flex-wrap:wrap"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="id" value="{{o.id}}">
+IN <input type="time" name="in" value="{{o.req_in or ''}}"> OUT <input type="time" name="out" value="{{o.req_out or ''}}"><input name="reply" placeholder="Comment for the engineer" maxlength="500" required>
+<button name="action" value="accept">Accept and apply times</button><button class="alt" name="action" value="reject">Reject</button></form>{% endif %}</td></tr>{% endfor %}</table>
+<p class="mute" style="padding:6px 12px">Accepting writes the IN/OUT shown to the attendance sheet (even for an earlier day) and tells the engineer. Leave the times empty to accept without changing the sheet.</p></div>{% endif %}
+<div class="sec" style="margin-top:16px"><h2 style="background:#555">Missed approvals (not decided in time)</h2><table><tr><th>Approver</th><th>Project</th><th>Last 30 days</th><th>All time</th></tr>
+{% for m in misses %}<tr><td>{{m.approver}}</td><td>{{m.project}}</td><td class="warn">{{m.last30}}</td><td>{{m.total}}</td></tr>{% else %}<tr><td colspan="4" class="none">No missed approvals yet.</td></tr>{% endfor %}</table></div>
+<div class="sec" style="margin-top:16px"><h2 style="background:#555">Decided in the last 7 days</h2><table><tr><th>Date</th><th>Engineer</th><th>Project</th><th>IN</th><th>OUT</th><th>Result</th><th>By</th><th>Note</th></tr>
+{% for a in recent %}<tr><td>{{a.day}}</td><td>{{a.name}}</td><td>{{a.project}}</td><td>{{a.in_time or '-'}}</td><td>{{a.out_time or '-'}}</td><td>{% if a.status=='approved' %}<span class="pill Present">Approved</span>{% elif a.status=='rejected' %}<span class="pill Absent">Rejected</span>{% else %}<span class="pill">{{a.status|capitalize}}</span>{% endif %}</td><td>{{a.decided_by}}</td><td class="wrap">{{a.note or ''}}</td></tr>{% else %}<tr><td colspan="8" class="none">Nothing yet.</td></tr>{% endfor %}</table></div>
+{% if adm %}<form method="post" action="{{ url_for('wf_settings') }}" class="bar" style="margin-top:16px"><input type="hidden" name="csrf" value="{{csrf}}"><label>Hours to approve before it goes to admin <input type="number" name="hours" value="{{hours}}" min="1" max="240" style="width:80px"></label><button>Save</button></form>{% endif %}
+{% endblock %}

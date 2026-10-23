@@ -1,0 +1,78 @@
+{
+  "id": "keenable",
+  "realm": "keenable",
+  "displayName": "Keenable Identity Portal",
+  "enabled": true,
+  "sslRequired": "NONE",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "System Administrator"
+      },
+      {
+        "name": "project-manager",
+        "description": "Project Manager"
+      },
+      {
+        "name": "member",
+        "description": "Team Member"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "attendance",
+      "name": "Attendance Service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "Att3nd_Client_Secret_2026!",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "rootUrl": "http://localhost:8000",
+      "baseUrl": "http://localhost:8000/",
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://localhost:8090/*",
+        "http://127.0.0.1:8000/*",
+        "http://127.0.0.1:8090/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "backchannel.logout.url": "http://localhost:8000/auth/backchannel-logout"
+      }
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "attendance-postgres-storage",
+        "providerId": "attendance-user-storage",
+        "subComponents": {},
+        "config": {
+          "jdbcUrl": [
+            "jdbc:postgresql://openproject-db:5432/users"
+          ],
+          "dbUser": [
+            "users_admin"
+          ],
+          "dbPassword": [
+            "UsersAdmin2026!"
+          ],
+          "priority": [
+            "0"
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}{% block body %}
+<form class="bar" method="get"><label>Date <input type="date" name="date" value="{{day}}" onchange="this.form.submit()"></label>
+<label>Project <select name="project" onchange="this.form.submit()"><option value="">All my projects</option>{% for p in projects %}<option value="{{p.id}}" {{ 'selected' if p.id==pid }}>{{p.name}}</option>{% endfor %}</select></label>
+{% if not is_engineer %}
+{% set ns = namespace(cur_name='All engineers') %}
+{% for u in users %}{% if u.id == target_uid %}{% set ns.cur_name = u.name %}{% endif %}{% endfor %}
+<label style="display:inline-flex;align-items:center;gap:6px">Engineer
+<div class="user-combobox" style="position:relative;display:inline-block">
+  <input type="hidden" name="user" id="user-hidden-input" value="{{target_uid}}">
+  <button type="button" id="user-combobox-btn" style="display:inline-flex;align-items:center;justify-content:space-between;gap:8px;min-width:210px;max-width:320px;background:#fff;border:1px solid #b8c0cc;border-radius:5px;padding:5px 9px;font:inherit;cursor:pointer;color:var(--ink);text-align:left" title="Click to search or select engineer">
+    <span id="user-combobox-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">{{ ns.cur_name }}</span>
+    <span style="font-size:10px;color:#667085;flex-shrink:0">▼</span>
+  </button>
+  <div id="user-combobox-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 10px 25px rgba(0,0,0,0.18);width:350px;max-width:92vw;overflow:hidden">
+    <div style="padding:8px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+      <input type="text" id="user-search-input" placeholder="🔍 Search name or role..." style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:13px;outline:none" autocomplete="off">
+    </div>
+    <div id="user-combobox-list" style="max-height:260px;overflow-y:auto;padding:4px 0">
+      <div class="user-opt" data-val="" data-text="all engineers" style="padding:7px 12px;font-size:13px;cursor:pointer;color:var(--ink);border-bottom:1px solid #f1f5f9;{{ 'background:#e2e8f0;font-weight:600' if not target_uid else '' }}">
+        All engineers
+      </div>
+      {% for u in users %}
+      <div class="user-opt" data-val="{{u.id}}" data-text="{{u.name|lower}}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:var(--ink);border-bottom:1px solid #f8fafc;{{ 'background:#e2e8f0;font-weight:600' if u.id==target_uid else '' }}">
+        {{u.name}}
+      </div>
+      {% endfor %}
+      <div id="user-opt-empty" style="display:none;padding:12px;font-size:13px;color:#94a3b8;text-align:center">No matching engineers</div>
+    </div>
+  </div>
+</div>
+{% if target_uid %}
+<a href="#" onclick="document.getElementById('user-hidden-input').value='';this.closest('form').submit();return false;" title="Clear engineer filter" style="font-size:13px;color:var(--mute);text-decoration:none;padding:2px 4px;margin-left:-2px;line-height:1">✕</a>
+{% endif %}
+</label>
+{% else %}
+<span class="pill" style="align-self:center;background:#eef2f6;color:#1f3864;font-weight:600">Your personal summary</span>
+{% endif %}
+<a class="btn alt" href="{{ url_for('trends', project=pid, user=target_uid if not is_engineer else None) }}">Trends and irregularity</a>
+{% if not is_engineer %}<a class="btn alt" href="{{ url_for('export_daily', date=day, project=pid) }}">Download this day (Excel)</a>
+<span><input type="month" id="mo" value="{{month}}"> <a class="btn alt" href="#" onclick="this.href='{{ url_for('export_monthly', project=pid) }}{{ '&' if pid else '?' }}month='+document.getElementById('mo').value">Monthly report (Excel)</a></span>{% endif %}</form>
+<script>
+(function(){
+  var btn = document.getElementById('user-combobox-btn');
+  var drop = document.getElementById('user-combobox-drop');
+  var search = document.getElementById('user-search-input');
+  var list = document.getElementById('user-combobox-list');
+  var hidden = document.getElementById('user-hidden-input');
+  var empty = document.getElementById('user-opt-empty');
+  if (!btn || !drop || !search || !list || !hidden) return;
+
+  function openDrop() {
+    drop.style.display = 'block';
+    search.value = '';
+    filterOpts('');
+    setTimeout(function(){ search.focus(); }, 40);
+  }
+
+  function closeDrop() {
+    drop.style.display = 'none';
+  }
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (drop.style.display === 'block') closeDrop();
+    else openDrop();
+  });
+
+  drop.addEventListener('click', function(e){
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', function(){
+    closeDrop();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeDrop();
+  });
+
+  function filterOpts(q) {
+    var terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    var items = list.querySelectorAll('.user-opt');
+    var visibleCount = 0;
+    items.forEach(function(item){
+      var txt = item.getAttribute('data-text') || '';
+      var val = item.getAttribute('data-val');
+      if (val === '') {
+        var match = terms.length === 0 || 'all engineers'.indexOf(terms[0]) !== -1;
+        item.style.display = match ? 'block' : 'none';
+        if (match) visibleCount++;
+        return;
+      }
+      var matches = terms.every(function(t){ return txt.indexOf(t) !== -1; });
+      item.style.display = matches ? 'block' : 'none';
+      if (matches) visibleCount++;
+    });
+    if (empty) empty.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+
+  search.addEventListener('input', function(){
+    filterOpts(this.value);
+  });
+
+  search.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var firstVis = list.querySelector('.user-opt:not([style*="display: none"])');
+      if (firstVis) {
+        hidden.value = firstVis.getAttribute('data-val');
+        closeDrop();
+        hidden.form.submit();
+      }
+    }
+  });
+
+  list.querySelectorAll('.user-opt').forEach(function(opt){
+    opt.addEventListener('mouseenter', function(){
+      this.style.backgroundColor = '#e0e7ff';
+    });
+    opt.addEventListener('mouseleave', function(){
+      this.style.backgroundColor = (this.getAttribute('data-val') === hidden.value) ? '#e2e8f0' : '';
+    });
+    opt.addEventListener('click', function(){
+      hidden.value = this.getAttribute('data-val');
+      closeDrop();
+      hidden.form.submit();
+    });
+  });
+})();
+</script>
+{% if is_admin and mail_ready %}<form method="post" action="{{ url_for('summary_send') }}" class="bar"><input type="hidden" name="csrf" value="{{csrf}}"><input type="hidden" name="date" value="{{day}}"><button class="alt">Email this summary now</button></form>{% endif %}
+<div class="kpis">
+<div class="kpi"><span>Total members</span><b>{{s.total}}</b></div>
+<div class="kpi" style="border-top-color:var(--green)"><span>Present</span><b>{{s.present}}</b></div>
+<div class="kpi" style="border-top-color:var(--red)"><span>Absent (no info)</span><b>{{s.absent|length}}</b></div>
+<div class="kpi" style="border-top-color:var(--blue)"><span>On leave</span><b>{{s.leave|length}}</b></div>
+<div class="kpi" style="border-top-color:var(--amber)"><span>Late</span><b>{{s.late|length}}</b></div>
+<div class="kpi" style="border-top-color:var(--orange)"><span>Short of shift</span><b>{{s.short|length}}</b></div>
+{% if s.unentered %}<div class="kpi" style="border-top-color:#98a2b3"><span>Not entered yet</span><b>{{s.unentered|length}}</b></div>{% endif %}</div>
+
+<div class="sec"><h2 style="background:var(--red)">1. Absent - no information ({{s.absent|length}})</h2>
+{% if s.absent %}<table><tr><th>Team member</th><th>Project</th></tr>{% for x in s.absent %}<tr><td>{{x.name}}</td><td>{{x.projects}}</td></tr>{% endfor %}</table>{% else %}<div class="none">None</div>{% endif %}</div>
+
+{% if s.unentered %}
+<div class="sec"><h2 style="background:#667085">Attendance not entered yet ({{s.unentered|length}})</h2>
+<table><tr><th>Team member</th><th>Project</th></tr>{% for x in s.unentered %}<tr><td>{{x.name}}</td><td>{{x.projects}}</td></tr>{% endfor %}</table></div>
+{% endif %}
+
+<div class="sec"><h2 style="background:var(--blue)">2. On leave - and who is handling the tasks ({{s.leave|length}})</h2>
+{% if s.leave %}<table><tr><th>Team member</th><th>Project</th><th>Leave type</th><th>Planned / unplanned</th><th>Task handled by</th><th>Open tasks in OpenProject</th><th>Remarks</th></tr>
+{% for x in s.leave %}<tr><td>{{x.name}}</td><td>{{x.projects}}</td><td>{{x.leave_type}}</td><td>{{x.planned or 'Not marked'}}</td>
+<td>{% if x.handled_by %}{{x.handled_by}}{% else %}<span class="warn">Nobody assigned</span>{% endif %}</td>
+<td class="wrap">{% if x.tasks %}<details><summary>{{x.tasks|length}} open</summary><ul class="t">{% for t in x.tasks %}<li><a href="{{t.url}}">#{{t.id}} {{t.subject}}</a> <span class="mute">{{t.project}} · {{t.status}}{% if t.due %} · due {{t.due}}{% endif %}</span></li>{% endfor %}</ul></details>{% else %}0{% endif %}</td>
+<td class="wrap">{{x.remarks}}</td></tr>{% endfor %}</table>{% else %}<div class="none">None</div>{% endif %}</div>
+
+<div class="sec"><h2 style="background:var(--green)">3. Present members ({{s.present_list|length}})</h2>
+{% if s.present_list %}<table><tr><th>Team member</th><th>Project</th><th>Shift start</th><th>In time</th><th>Out time</th><th>Hours in office</th><th>Status</th><th>Remarks</th></tr>
+{% for x in s.present_list %}<tr>
+<td>{{x.name}}</td>
+<td>{{x.projects}}</td>
+<td>{{x.shift_start or shift_start}}</td>
+<td>{{x.in_time or '—'}}</td>
+<td>{{x.out_time or '—'}}</td>
+<td>{{x.worked_hm or '—'}}</td>
+<td>{% if x.late_by is not none %}<span class="warn">Late (+{{x.late_hm}})</span>{% else %}<span class="pill Present" style="font-size:11px">On time</span>{% endif %}</td>
+<td class="wrap">{{x.remarks}}</td>
+</tr>{% endfor %}</table>{% else %}<div class="none">None</div>{% endif %}</div>
+
+<div class="sec"><h2 style="background:var(--amber)">4. Late arrivals ({{s.late|length}})</h2>
+{% if s.late %}<table><tr><th>Team member</th><th>Project</th><th>Shift start</th><th>In time</th><th>Late by</th><th>Remarks</th></tr>{% for x in s.late %}<tr><td>{{x.name}}</td><td>{{x.projects}}</td><td>{{x.shift_start or shift_start}}</td><td>{{x.in_time}}</td><td class="warn">{{x.late_hm}}</td><td class="wrap">{{x.remarks}}</td></tr>{% endfor %}</table>{% else %}<div class="none">None</div>{% endif %}</div>
+
+<div class="sec"><h2 style="background:var(--orange)">5. Not completing the {{'%g'|format(shift_hours)}}-hour shift ({{s.short|length}})</h2>
+{% if s.short %}<table><tr><th>Team member</th><th>Project</th><th>In time</th><th>Out time</th><th>Hours in office</th><th>Short by</th></tr>{% for x in s.short %}<tr><td>{{x.name}}</td><td>{{x.projects}}</td><td>{{x.in_time}}</td><td>{{x.out_time}}</td><td>{{x.worked_hm}}</td><td class="warn">{{x.short_hm}}</td></tr>{% endfor %}</table>{% else %}<div class="none">None</div>{% endif %}</div>
+{% endblock %}

@@ -1,0 +1,228 @@
+{% extends "base.html" %}{% block body %}
+<form class="bar" method="get">
+<label>Period 
+<select name="days" id="period-select" onchange="onPeriodChange(this)">
+  <option value="7" {{ 'selected' if selected_days=='7' }}>Last 7 days</option>
+  <option value="14" {{ 'selected' if selected_days=='14' }}>Last 14 days</option>
+  <option value="30" {{ 'selected' if selected_days=='30' }}>Last 30 days</option>
+  <option value="60" {{ 'selected' if selected_days=='60' }}>Last 60 days</option>
+  <option value="90" {{ 'selected' if selected_days=='90' }}>Last 90 days</option>
+  <option value="180" {{ 'selected' if selected_days=='180' }}>Last 180 days (6 months)</option>
+  <option value="365" {{ 'selected' if selected_days=='365' }}>Last 365 days (1 year)</option>
+  <option value="custom" {{ 'selected' if selected_days=='custom' }}>Custom range...</option>
+</select>
+</label>
+<span id="custom-range-inputs" style="display: {{ 'inline-flex' if selected_days=='custom' else 'none' }}; align-items: center; gap: 6px;">
+  <label style="margin:0;display:inline-flex;align-items:center;gap:4px">From <input type="date" id="start-date" name="start" value="{{start}}" {% if selected_days != 'custom' %}disabled{% endif %} style="padding:3px 6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px"></label>
+  <label style="margin:0;display:inline-flex;align-items:center;gap:4px">To <input type="date" id="end-date" name="end" value="{{end}}" {% if selected_days != 'custom' %}disabled{% endif %} style="padding:3px 6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px"></label>
+  <button type="submit" class="btn alt" style="padding:4px 10px;font-size:12px">Apply</button>
+</span>
+<label>Project <select name="project" onchange="this.form.submit()"><option value="">All my projects</option>{% for p in projects %}<option value="{{p.id}}" {{ 'selected' if p.id==pid }}>{{p.name}}</option>{% endfor %}</select></label>
+{% if not is_engineer %}
+{% set ns = namespace(cur_name='All engineers') %}
+{% for u in users %}{% if u.id == target_uid %}{% set ns.cur_name = u.name %}{% endif %}{% endfor %}
+<label style="display:inline-flex;align-items:center;gap:6px">Engineer
+<div class="user-combobox" style="position:relative;display:inline-block">
+  <input type="hidden" name="user" id="user-hidden-input" value="{{target_uid}}">
+  <button type="button" id="user-combobox-btn" style="display:inline-flex;align-items:center;justify-content:space-between;gap:8px;min-width:210px;max-width:320px;background:#fff;border:1px solid #b8c0cc;border-radius:5px;padding:5px 9px;font:inherit;cursor:pointer;color:var(--ink);text-align:left" title="Click to search or select engineer">
+    <span id="user-combobox-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">{{ ns.cur_name }}</span>
+    <span style="font-size:10px;color:#667085;flex-shrink:0">▼</span>
+  </button>
+  <div id="user-combobox-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 10px 25px rgba(0,0,0,0.18);width:350px;max-width:92vw;overflow:hidden">
+    <div style="padding:8px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+      <input type="text" id="user-search-input" placeholder="🔍 Search name or role..." style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:13px;outline:none" autocomplete="off">
+    </div>
+    <div id="user-combobox-list" style="max-height:260px;overflow-y:auto;padding:4px 0">
+      <div class="user-opt" data-val="" data-text="all engineers" style="padding:7px 12px;font-size:13px;cursor:pointer;color:var(--ink);border-bottom:1px solid #f1f5f9;{{ 'background:#e2e8f0;font-weight:600' if not target_uid else '' }}">
+        All engineers
+      </div>
+      {% for u in users %}
+      <div class="user-opt" data-val="{{u.id}}" data-text="{{u.name|lower}}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:var(--ink);border-bottom:1px solid #f8fafc;{{ 'background:#e2e8f0;font-weight:600' if u.id==target_uid else '' }}">
+        {{u.name}}
+      </div>
+      {% endfor %}
+      <div id="user-opt-empty" style="display:none;padding:12px;font-size:13px;color:#94a3b8;text-align:center">No matching engineers</div>
+    </div>
+  </div>
+</div>
+{% if target_uid %}
+<a href="#" onclick="document.getElementById('user-hidden-input').value='';this.closest('form').submit();return false;" title="Clear engineer filter" style="font-size:13px;color:var(--mute);text-decoration:none;padding:2px 4px;margin-left:-2px;line-height:1">✕</a>
+{% endif %}
+</label>
+{% else %}
+<span class="pill" style="align-self:center;background:#eef2f6;color:#1f3864;font-weight:600">Your personal trends</span>
+{% endif %}
+<span class="mute">{{start}} to {{end}} · attendance was entered on {{entered}} of {{daily|length}} days</span></form>
+<script>
+(function(){
+  var btn = document.getElementById('user-combobox-btn');
+  var drop = document.getElementById('user-combobox-drop');
+  var search = document.getElementById('user-search-input');
+  var list = document.getElementById('user-combobox-list');
+  var hidden = document.getElementById('user-hidden-input');
+  var empty = document.getElementById('user-opt-empty');
+  if (!btn || !drop || !search || !list || !hidden) return;
+
+  function openDrop() {
+    drop.style.display = 'block';
+    search.value = '';
+    filterOpts('');
+    setTimeout(function(){ search.focus(); }, 40);
+  }
+
+  function closeDrop() {
+    drop.style.display = 'none';
+  }
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (drop.style.display === 'block') closeDrop();
+    else openDrop();
+  });
+
+  drop.addEventListener('click', function(e){
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', function(){
+    closeDrop();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeDrop();
+  });
+
+  function filterOpts(q) {
+    var terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    var items = list.querySelectorAll('.user-opt');
+    var visibleCount = 0;
+    items.forEach(function(item){
+      var txt = item.getAttribute('data-text') || '';
+      var val = item.getAttribute('data-val');
+      if (val === '') {
+        var match = terms.length === 0 || 'all engineers'.indexOf(terms[0]) !== -1;
+        item.style.display = match ? 'block' : 'none';
+        if (match) visibleCount++;
+        return;
+      }
+      var matches = terms.every(function(t){ return txt.indexOf(t) !== -1; });
+      item.style.display = matches ? 'block' : 'none';
+      if (matches) visibleCount++;
+    });
+    if (empty) empty.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+
+  search.addEventListener('input', function(){
+    filterOpts(this.value);
+  });
+
+  search.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var firstVis = list.querySelector('.user-opt:not([style*="display: none"])');
+      if (firstVis) {
+        hidden.value = firstVis.getAttribute('data-val');
+        closeDrop();
+        hidden.form.submit();
+      }
+    }
+  });
+
+  list.querySelectorAll('.user-opt').forEach(function(opt){
+    opt.addEventListener('mouseenter', function(){
+      this.style.backgroundColor = '#e0e7ff';
+    });
+    opt.addEventListener('mouseleave', function(){
+      this.style.backgroundColor = (this.getAttribute('data-val') === hidden.value) ? '#e2e8f0' : '';
+    });
+    opt.addEventListener('click', function(){
+      hidden.value = this.getAttribute('data-val');
+      closeDrop();
+      hidden.form.submit();
+    });
+  });
+})();
+</script>
+{% if not entered %}<div class="sec"><div class="none">No attendance has been entered in this period yet, so there is nothing to show.</div></div>{% else %}
+
+<div class="sec"><h2 style="background:var(--nav)">Daily attendance pattern</h2><div style="padding:10px 12px;position:relative">
+<p class="mute" style="margin:0 0 6px">{% for c,l in [('#548235','On time'),('#bf8f00','Late'),('#2e75b6','On leave'),('#c00000','Absent (no info)')] %}<span style="display:inline-block;width:10px;height:10px;background:{{c}};border-radius:2px"></span> {{l}} &nbsp; {% endfor %} Days with no bar had no attendance entered. Hover over any day column to view details.</p>
+<svg viewBox="0 0 {{g.W}} {{g.H}}" style="width:100%;height:auto;min-width:560px" role="img" aria-label="Engineers on time, late, on leave and absent for each day">
+<line x1="{{g.L}}" y1="{{g.H-g.B}}" x2="{{g.W}}" y2="{{g.H-g.B}}" stroke="#98a2b3"/><line x1="{{g.L}}" y1="{{g.T}}" x2="{{g.W}}" y2="{{g.T}}" stroke="#e4e7ec"/>
+<text x="{{g.L-6}}" y="{{g.T+4}}" text-anchor="end" font-size="11" fill="#667085">{{g.top}}</text><text x="{{g.L-6}}" y="{{g.H-g.B+4}}" text-anchor="end" font-size="11" fill="#667085">0</text>
+{% for c in daily %}
+{% for s in c.seg %}<rect x="{{c.x}}" y="{{s.y}}" width="{{c.w}}" height="{{s.h}}" fill="{{s.col}}" rx="2"></rect>{% endfor %}
+{% if c.tick %}<text x="{{c.x + c.w/2}}" y="{{g.H-g.B+15}}" text-anchor="middle" font-size="10" fill="#667085">{{c.label}}</text>{% endif %}
+<rect x="{{c.hx}}" y="{{g.T}}" width="{{c.hw}}" height="{{g.H - g.B - g.T}}" fill="transparent" class="chart-col" data-tip="{{c.tip_html|e}}" {% if c.entered %}data-url="{{ url_for('summary', date=c.day, project=pid, user=target_uid if not is_engineer else None) }}"{% endif %} style="cursor:{% if c.entered %}pointer{% else %}default{% endif %}"></rect>
+{% endfor %}</svg>
+<div id="chart-tooltip" style="position:fixed;display:none;background:#0f172a;color:#f8fafc;padding:10px 14px;border-radius:6px;font-size:12px;line-height:1.5;box-shadow:0 8px 20px rgba(0,0,0,0.25);pointer-events:none;z-index:9999;white-space:nowrap;border:1px solid #334155"></div>
+<script>
+function onPeriodChange(sel) {
+  var customInputs = document.getElementById('custom-range-inputs');
+  var startInput = document.getElementById('start-date');
+  var endInput = document.getElementById('end-date');
+  if (sel.value === 'custom') {
+    if (customInputs) customInputs.style.display = 'inline-flex';
+    if (startInput) startInput.disabled = false;
+    if (endInput) endInput.disabled = false;
+  } else {
+    if (customInputs) customInputs.style.display = 'none';
+    if (startInput) startInput.disabled = true;
+    if (endInput) endInput.disabled = true;
+    sel.form.submit();
+  }
+}
+(function(){
+  var tip = document.getElementById('chart-tooltip');
+  if (!tip) return;
+  document.querySelectorAll('.chart-col').forEach(function(el){
+    el.addEventListener('mouseenter', function(e){
+      tip.innerHTML = this.getAttribute('data-tip');
+      tip.style.display = 'block';
+      this.style.fill = 'rgba(31,56,100,0.12)';
+    });
+    el.addEventListener('mousemove', function(e){
+      var x = e.clientX + 14;
+      var y = e.clientY + 14;
+      if (x + tip.offsetWidth > window.innerWidth - 10) { x = e.clientX - tip.offsetWidth - 14; }
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    });
+    el.addEventListener('mouseleave', function(){
+      tip.style.display = 'none';
+      this.style.fill = 'transparent';
+    });
+    el.addEventListener('click', function(){
+      var u = this.getAttribute('data-url');
+      if (u) window.location.href = u;
+    });
+  });
+})();
+</script>
+</div></div>
+
+{#
+<div class="sec"><h2 style="background:var(--nav)">Arrival trend: average minutes after own shift start</h2><div style="padding:10px 12px">
+<p class="mute" style="margin:0 0 6px">Each point is the day's average arrival of everyone present, measured against each engineer's own shift start. Above the dashed line is beyond the {{grace}}-minute grace.</p>
+<svg viewBox="0 0 {{g.W}} {{g.H2}}" style="width:100%;height:auto;min-width:560px" role="img" aria-label="Average arrival time relative to shift start for each day">
+<line x1="{{g.L}}" y1="{{g.y0}}" x2="{{g.W}}" y2="{{g.y0}}" stroke="#98a2b3"/><text x="{{g.L-6}}" y="{{g.y0+4}}" text-anchor="end" font-size="10" fill="#667085">start</text>
+<line x1="{{g.L}}" y1="{{g.yg}}" x2="{{g.W}}" y2="{{g.yg}}" stroke="#bf8f00" stroke-dasharray="5 4"/><text x="{{g.L-6}}" y="{{g.yg+4}}" text-anchor="end" font-size="10" fill="#bf8f00">+{{grace}}</text>
+{% if g.pts|length > 1 %}<polyline points="{{g.line}}" fill="none" stroke="#1f3864" stroke-width="2"/>{% endif %}
+{% for x,y,c in g.pts %}<circle cx="{{x}}" cy="{{y}}" r="4" fill="{{ '#c00000' if c.avg_dev > grace else '#1f3864' }}" stroke="#fff" stroke-width="1.5"><title>{{c.label}} {{c.wd}}: average {{ signed(c.avg_dev) }} ({{c.devs|length}} present)</title></circle>
+{% if c.tick %}<text x="{{x}}" y="{{g.H2-g.B+15}}" text-anchor="middle" font-size="10" fill="#667085">{{c.label}}</text>{% endif %}{% endfor %}</svg></div></div>
+#}
+
+<div class="sec"><h2 style="background:var(--nav)">Late arrivals by weekday</h2><table><tr>{% for w in wk %}<th style="text-align:center">{{w.wd}}</th>{% endfor %}</tr>
+<tr>{% for w in wk %}<td style="text-align:center">{% if w.pct is none %}<span class="mute">-</span>{% else %}<b class="{{ 'warn' if w.pct>=30 }}">{{w.pct}}%</b><br><span class="mute">{{w.late}} of {{w.present}}</span>{% endif %}</td>{% endfor %}</tr></table></div>
+
+<div class="sec"><h2 style="background:var(--nav)">{% if target_uid %}Engineer regularity & summary{% else %}Engineer regularity (most irregular first){% endif %}</h2><table>
+<tr><th>Engineer</th><th>Flag</th><th>Days present</th><th>Late days</th><th>Late %</th><th>Avg late by</th><th>Avg arrival vs shift</th><th>Short of shift</th><th>Planned leave</th><th>Unplanned leave</th><th>Absent (no info)</th><th>Direction</th></tr>
+{% for p in people %}<tr><td>{{p.name}}<br><span class="mute">{{p.projects}}</span></td>
+<td>{% if not p.days %}<span class="mute">—</span>{% elif p.irregular %}<span class="pill Absent">Irregular</span>{% elif p.score==0 %}<span class="pill Present">Regular</span>{% else %}<span class="mute">Minor</span>{% endif %}</td>
+<td>{{p.present}} <span class="mute">of {{p.days}}</span></td><td>{{p.late}}</td><td class="{{ 'warn' if p.late_pct>=30 }}">{{p.late_pct}}%</td><td>{{p.avg_late}}</td><td>{{p.avg_dev}}</td>
+<td>{{p.short}}</td><td>{{p.pl}}</td><td class="{{ 'warn' if p.ul>=2 }}">{{p.ul}}</td><td class="{{ 'warn' if p.absent }}">{{p.absent}}</td>
+<td class="{{ 'warn' if p.trend=='Getting worse' }}">{{p.trend or '-'}}</td></tr>
+{% else %}<tr><td colspan="12" class="none">No engineers in the selected projects.</td></tr>{% endfor %}</table></div>
+<p class="mute">How to read this: "Irregular" means late on at least 2 days and 30% or more of days present, or absent without information on 2 or more days, or 2 or more unplanned leaves, or short of the shift on 3 or more days.
+Unplanned leave includes leave not marked either way. "Direction" compares lateness in the second half of the period with the first half (needs at least 6 days present). For each engineer, only days on which their team's attendance was entered are counted; a day nobody filled in is not treated as absence.</p>
+{% endif %}{% endblock %}
