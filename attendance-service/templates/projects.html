@@ -3,7 +3,7 @@
 {% if can_create %}<div class="sec"><h2 style="background:var(--nav)">Add a project</h2><div style="padding:12px">
 <form method="post" action="{{ url_for('projects_create') }}" class="inline"><input type="hidden" name="csrf" value="{{csrf}}">
 <input type="text" name="name" placeholder="Project name" maxlength="80" required pattern="{{pat.project}}" title="2-80 characters, at least one letter" style="min-width:320px">
-<button style="background:var(--green);border-color:var(--green)">Add project</button></form></div></div>{% endif %}
+<button >Add project</button></form></div></div>{% endif %}
 
 {% if mgr %}<form id="watchform" method="post" action="{{ url_for('projects_watch') }}"><input type="hidden" name="csrf" value="{{csrf}}"></form>{% endif %}
 <div class="sec"><h2 style="background:var(--nav)">Projects</h2><table>
