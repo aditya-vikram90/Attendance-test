@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPSC-ORA Attendance & Workforce Operations Platform</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .slide {
+      display: none;
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1);
+    }
+    .glow-primary {
+      box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.25);
+    }
+    .glow-indigo {
+      box-shadow: 0 0 50px -10px rgba(99, 102, 241, 0.25);
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .gradient-text-emerald {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-text-cyan {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge-pill {
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-emerald-500 selection:text-slate-950">
+
+  <!-- Top Navigation & Progress Header -->
+  <header class="w-full px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-emerald-500/20">
+        U
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+          UPSC-ORA <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Enterprise v2.4</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Attendance, Biometrics & Field Operations Management</p>
+      </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="hidden md:flex items-center gap-3">
+      <div class="flex items-center gap-1.5" id="slideDots"></div>
+      <span class="text-xs font-mono text-slate-400 ml-2" id="slideCounter">01 / 10</span>
+    </div>
+
+    <!-- Action Toolbar -->
+    <div class="flex items-center gap-2">
+      <button onclick="toggleNotes()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        <span id="notesToggleText">Show Speaker Notes</span>
+      </button>
+      <button onclick="toggleFullscreen()" class="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition" title="Toggle Fullscreen">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Slide Viewport -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-6 py-8 flex flex-col justify-center relative">
+
+    <!-- SLIDE 1: TITLE & HOOK -->
+    <section class="slide active flex-col justify-center items-center text-center py-10" id="slide-1">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Zero-Trust Attendance, Field Mobility & Automated Governance
+      </div>
+      <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl leading-tight">
+        Next-Generation <span class="gradient-text-emerald">Workforce Operations</span> & Attendance Platform
+      </h1>
+      <p class="text-slate-400 text-lg md:text-xl max-w-2xl mt-5 font-normal leading-relaxed">
+        Eliminate ghost punch-ins, streamline multi-tier field approvals, and ensure 100% payroll compliance across Web & Android.
+      </p>
+
+      <!-- Key Metric Highlights Banner -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 w-full max-w-4xl">
+        <div class="glass-card rounded-2xl p-5 text-left border border-slate-800/80 hover:border-emerald-500/40 transition">
+          <div class="text-3xl font-extrabold text-white font-mono">99.8%</div>
+          <div class="text-xs text-slate-400 mt-1 font-medium">Geofence Accuracy</div>
+          <div class="text-[11px] text-emerald-400 mt-2 font-mono">Haversine GPS Radius</div>
+        </div>
+        <div class="glass-card rounded-2xl p-5 text-left border border-slate-800/80 hover:border-emerald-500/40 transition">
+          <div class="text-3xl font-extrabold text-white font-mono">0</div>
+          <div class="text-xs text-slate-400 mt-1 font-medium">Shadow Accounts</div>
+          <div class="text-[11px] text-emerald-400 mt-2 font-mono">Keycloak Dynamic SPI</div>
+        </div>
+        <div class="glass-card rounded-2xl p-5 text-left border border-slate-800/80 hover:border-emerald-500/40 transition">
+          <div class="text-3xl font-extrabold text-white font-mono">32s</div>
+          <div class="text-xs text-slate-400 mt-1 font-medium">Zero-Downtime CI/CD</div>
+          <div class="text-[11px] text-emerald-400 mt-2 font-mono">Automated Rolling Update</div>
+        </div>
+        <div class="glass-card rounded-2xl p-5 text-left border border-slate-800/80 hover:border-emerald-500/40 transition">
+          <div class="text-3xl font-extrabold text-white font-mono">100%</div>
+          <div class="text-xs text-slate-400 mt-1 font-medium">Audit Compliance</div>
+          <div class="text-[11px] text-emerald-400 mt-2 font-mono">Immutable Log Ledger</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: THE PROBLEM / MARKET REALITY -->
+    <section class="slide flex-col justify-center py-6" id="slide-2">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold mb-4 w-fit">
+        Current Operational Liabilities
+      </div>
+      <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">The High Cost of <span class="text-rose-400">Legacy Attendance</span></h2>
+      <p class="text-slate-400 text-sm md:text-base mt-2 max-w-2xl">Traditional biometric hardware and manual spreadsheets leak thousands of work hours and invite payroll disputes.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="glass-card rounded-2xl p-6 border-l-4 border-l-rose-500">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 font-bold mb-4">
+            ⚠️
+          </div>
+          <h3 class="text-lg font-bold text-white">Proxy & Ghost Punching</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Field personnel sharing credentials, spoofing device GPS via fake location APKs, or clocking in for peers while physically off-site.
+          </p>
+          <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs text-rose-300 font-mono">
+            Loss: 12% to 18% of reported billable hours
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border-l-4 border-l-amber-500">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold mb-4">
+            ⏳
+          </div>
+          <h3 class="text-lg font-bold text-white">Multi-Tier Approval Chaos</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Leave applications, compensatory offs, and client-site reassignments get trapped in email threads with zero tracking or escalation deadlines.
+          </p>
+          <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs text-amber-300 font-mono">
+            Delay: 3 to 7 days for leave authorization
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border-l-4 border-l-indigo-500">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold mb-4">
+            🔒
+          </div>
+          <h3 class="text-lg font-bold text-white">Audit & Data Lock Discrepancies</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Project managers modifying attendance weeks after payroll closed, leaving organizations vulnerable to audit penalties and labor non-compliance.
+          </p>
+          <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs text-indigo-300 font-mono">
+            Risk: Severe labor compliance audit flags
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: THE UPSC-ORA SOLUTION ECOSYSTEM -->
+    <section class="slide flex-col justify-center py-6" id="slide-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4 w-fit">
+        Unified Architecture
+      </div>
+      <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">The <span class="gradient-text-emerald">Complete Ecosystem</span></h2>
+      <p class="text-slate-400 text-sm md:text-base mt-2 max-w-2xl">One synchronized platform connecting Headquarters, Project Managers, and On-Site Field Engineers.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="glass-card rounded-2xl p-6 border border-emerald-500/20 hover:border-emerald-500/50 transition glow-primary">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold mb-4">
+            💻
+          </div>
+          <h3 class="text-lg font-bold text-white">WebPortal Suite</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            High-speed management console built with Flask, Gunicorn, and Nginx. Real-time daily rosters, multi-level leave approvals, resource transfers, and 1-click Excel payroll export.
+          </p>
+          <ul class="text-xs text-slate-300 mt-4 space-y-1.5 font-mono">
+            <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Executive Overview Dashboard</li>
+            <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Dynamic Team Transfer Engine</li>
+            <li class="flex items-center gap-2"><span class="text-emerald-400">✓</span> Auto-Emailed Daily Summaries</li>
+          </ul>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border border-sky-500/20 hover:border-sky-500/50 transition">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-400 font-bold mb-4">
+            📱
+          </div>
+          <h3 class="text-lg font-bold text-white">Android Mobile App</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Native, zero-friction check-in for on-site engineers. Enforces hardware geofencing, detects mock GPS apps, and binds directly to the authorized employee device.
+          </p>
+          <ul class="text-xs text-slate-300 mt-4 space-y-1.5 font-mono">
+            <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> OAuth2 PKCE Biometric Login</li>
+            <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Real-Time Haversine Meter Radius</li>
+            <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Anti-Spoof Mock Detection</li>
+          </ul>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border border-indigo-500/20 hover:border-indigo-500/50 transition">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold mb-4">
+            🛡️
+          </div>
+          <h3 class="text-lg font-bold text-white">Keycloak 26 Identity</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Quarkus enterprise authentication broker. Features our custom Java 21 SPI that verifies credentials dynamically with zero shadow database overhead.
+          </p>
+          <ul class="text-xs text-slate-300 mt-4 space-y-1.5 font-mono">
+            <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> Single Sign-On (SSO)</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> Zero Shadow User Sync</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> BCrypt Cryptographic Hashes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: INTERACTIVE ROLE SHOWCASE (RBAC) -->
+    <section class="slide flex-col justify-center py-6" id="slide-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-2">
+            Tailored Experiences
+          </div>
+          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Three Powerful User Roles</h2>
+        </div>
+
+        <!-- Role Toggle Tabs -->
+        <div class="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+          <button onclick="switchRole('admin')" id="tab-admin" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition">System Admin</button>
+          <button onclick="switchRole('pm')" id="tab-pm" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Project Manager</button>
+          <button onclick="switchRole('engineer')" id="tab-engineer" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Field Engineer</button>
+        </div>
+      </div>
+
+      <!-- Role Details Panels -->
+      <div id="role-panel-admin" class="role-panel glass-card rounded-2xl p-6 border border-emerald-500/30">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Authority: Global Organization</span>
+            <h3 class="text-2xl font-bold text-white mt-2">Executive Governance & Master Audits</h3>
+            <p class="text-slate-400 text-xs mt-1">Persona: System Administrator (<code class="text-emerald-400">admin@keenable.io</code>)</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 font-mono">Accessible Modules</span>
+            <div class="text-sm font-bold text-emerald-400 font-mono">100% System Access</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-emerald-400">●</span> Resource Transfer Hub</h4>
+            <p class="text-xs text-slate-400 mt-2">Instantly reassign engineers between active projects or pull from Bench. Automatically notifies incoming PMs via email.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-emerald-400">●</span> Compliance Override</h4>
+            <p class="text-xs text-slate-400 mt-2">While PMs are restricted from altering past records, Admins have privileged historical audit overrides for dispute resolution.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-emerald-400">●</span> 1-Click Payroll Export</h4>
+            <p class="text-xs text-slate-400 mt-2">Generate standardized monthly payroll workbooks (.xlsx) with automated penalty, overtime, and leave calculations.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="role-panel-pm" class="role-panel hidden glass-card rounded-2xl p-6 border border-sky-500/30">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">Authority: Project & Assigned Teams</span>
+            <h3 class="text-2xl font-bold text-white mt-2">Team Operations & Attendance Desk</h3>
+            <p class="text-slate-400 text-xs mt-1">Persona: Project Lead (<code class="text-sky-400">pm.sharma@keenable.io</code>)</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 font-mono">Accessible Modules</span>
+            <div class="text-sm font-bold text-sky-400 font-mono">Scoped Project Access</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-sky-400">●</span> Daily Roster Grid</h4>
+            <p class="text-xs text-slate-400 mt-2">Real-time daily view of team members. Mark check-ins on behalf of field staff for today and future scheduled dates.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-sky-400">●</span> Multi-Tier Leave Approval</h4>
+            <p class="text-xs text-slate-400 mt-2">Review pending leaves in a dedicated inbox with live balance verification. One-click approve, reject, or request explanation.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-sky-400">●</span> Geofence Site Manager</h4>
+            <p class="text-xs text-slate-400 mt-2">Configure geographic coordinates (Lat/Long) and radius (e.g. 150m) for client installations and review flagged mobile events.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="role-panel-engineer" class="role-panel hidden glass-card rounded-2xl p-6 border border-indigo-500/30">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">Authority: Personal Self-Service</span>
+            <h3 class="text-2xl font-bold text-white mt-2">Personal Transparency & Mobile Punch</h3>
+            <p class="text-slate-400 text-xs mt-1">Persona: Field Engineer (<code class="text-indigo-400">dev.arun@keenable.io</code>)</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 font-mono">Accessible Modules</span>
+            <div class="text-sm font-bold text-indigo-400 font-mono">Self-Service Portal</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-indigo-400">●</span> 1-Tap Mobile Check-In</h4>
+            <p class="text-xs text-slate-400 mt-2">Arrive at client site, tap Punch In. The Android app checks GPS coordinates and registers the punch in under 1 second.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-indigo-400">●</span> Leave Self-Service</h4>
+            <p class="text-xs text-slate-400 mt-2">Check accrued CL, SL, and EL balances in real time. Apply for planned leave or half-day with instant notification to the PM.</p>
+          </div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2"><span class="text-indigo-400">●</span> Objection Filing</h4>
+            <p class="text-xs text-slate-400 mt-2">If marked absent due to an off-site client duty or network deadzone, submit an objection with notes directly for PM rectification.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: ANDROID APP & ANTI-TAMPERING SIMULATOR -->
+    <section class="slide flex-col justify-center py-6" id="slide-5">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold mb-4 w-fit">
+        Field Security & Anti-Fraud
+      </div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Android App & <span class="text-sky-400">Anti-Spoofing Engine</span></h2>
+      <p class="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">How the mobile application protects your organization against false attendance.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6 items-center">
+        <!-- Interactive Simulator Card -->
+        <div class="md:col-span-5 glass-card rounded-2xl p-6 border border-slate-800 relative overflow-hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span class="text-xs font-mono text-slate-400">Mobile Simulator</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">GPS Engine Active</span>
+          </div>
+
+          <div class="mt-4 bg-slate-900 p-4 rounded-xl border border-slate-800 text-center">
+            <div id="simStatusIcon" class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mx-auto mb-2">
+              📍
+            </div>
+            <div id="simStatusTitle" class="text-sm font-bold text-white">Within Site Boundary</div>
+            <div id="simStatusSub" class="text-xs text-slate-400 mt-0.5">UPSC Head Office (Dholpur House)</div>
+            <div id="simDistance" class="text-xs font-mono text-emerald-400 mt-2">Distance: 14.2 meters (Radius: 150m)</div>
+          </div>
+
+          <!-- Controls to test anti-fraud live -->
+          <div class="mt-4 space-y-2">
+            <button onclick="testSim('normal')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center justify-between">
+              <span>Simulate Authentic Punch</span>
+              <span class="font-mono text-[10px] bg-emerald-950/40 px-2 py-0.5 rounded">Trust: Green</span>
+            </button>
+            <button onclick="testSim('out')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-between">
+              <span>Simulate Outside Geofence (450m)</span>
+              <span class="font-mono text-[10px] bg-slate-900 px-2 py-0.5 rounded text-amber-400">Flagged</span>
+            </button>
+            <button onclick="testSim('mock')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-300 transition flex items-center justify-between">
+              <span>Simulate Fake GPS App (Mock Provider)</span>
+              <span class="font-mono text-[10px] bg-rose-900/80 px-2 py-0.5 rounded text-rose-200">Tampering Blocked</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Explanatory Pillars -->
+        <div class="md:col-span-7 space-y-4">
+          <div class="glass-card p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2">
+              <span class="text-sky-400">01.</span> Haversine Precision Distance Math
+            </h4>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+              Calculates real-world great-circle distance between mobile coordinates and project geo-coordinates. Automatically accommodates building perimeters.
+            </p>
+          </div>
+
+          <div class="glass-card p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2">
+              <span class="text-sky-400">02.</span> Hardware Device Binding (<code class="text-sky-300">/api/m/device</code>)
+            </h4>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+              On first login, the employee's phone hardware hash is locked to their account. If an employee tries to log into someone else's phone, the system rejects the punch.
+            </p>
+          </div>
+
+          <div class="glass-card p-4 rounded-xl border border-slate-800">
+            <h4 class="text-white text-sm font-semibold flex items-center gap-2">
+              <span class="text-sky-400">03.</span> Kernel-Level Mock Location Detection
+            </h4>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+              Inspects Android's native location provider. If fake GPS or developer options mock location is detected, the event is immediately tagged with <code class="text-rose-400">FLAG_MOCK</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: ENTERPRISE TECHNICAL ARCHITECTURE -->
+    <section class="slide flex-col justify-center py-6" id="slide-6">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-4 w-fit">
+        Technical Perspective
+      </div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Enterprise Infrastructure & <span class="gradient-text-cyan">Zero Shadow Users</span></h2>
+      <p class="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">Clean architectural separation: Data Privacy, PostgreSQL 17 FDW, and Keycloak 26 Identity.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="text-xs font-mono text-indigo-400 mb-2 font-bold">1. IDENTITY TIER</div>
+          <h4 class="text-sm font-bold text-white">Keycloak 26 (Quarkus)</h4>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            Enterprise OpenID Connect & OAuth2 identity broker. Uses our custom Java 21 SPI to query master credentials directly with <strong>0 shadow users</strong> stored in Keycloak.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="text-xs font-mono text-indigo-400 mb-2 font-bold">2. APPLICATION TIER</div>
+          <h4 class="text-sm font-bold text-white">Flask & Gunicorn Engine</h4>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            Single-worker multi-threaded process (<code class="text-indigo-300">-w 1 --threads 8</code>). Guarantees that internal background email and attendance cleanup tasks never double-trigger.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="text-xs font-mono text-indigo-400 mb-2 font-bold">3. DATA TIER</div>
+          <h4 class="text-sm font-bold text-white">PostgreSQL 17 Multi-DB</h4>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            Physical separation of <code class="text-indigo-300">users</code>, <code class="text-indigo-300">attendance</code>, and <code class="text-indigo-300">keycloak</code> databases linked inside the engine via <code class="text-indigo-300">postgres_fdw</code> foreign tables.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="text-xs font-mono text-indigo-400 mb-2 font-bold">4. REVERSE PROXY</div>
+          <h4 class="text-sm font-bold text-white">Nginx 1.24+ SSL</h4>
+          <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
+            Terminates public HTTPS traffic, injects required forwarded headers, and configures large buffer sizes (<code class="text-indigo-300">128k/256k</code>) to eliminate HTTP 502 SSO cookie truncation.
+          </p>
+        </div>
+      </div>
+
+      <!-- Architecture Highlight Callout -->
+      <div class="mt-6 p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/20 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">⚡</div>
+          <div class="text-xs text-slate-300">
+            <strong>Federated Single Source of Truth:</strong> Passwords are never synced or duplicated. When an employee is deactivated in HR, their access terminates across Web and Android in real time.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: AUTOMATED CI/CD PIPELINE -->
+    <section class="slide flex-col justify-center py-6" id="slide-7">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4 w-fit">
+        DevOps & Continuous Delivery
+      </div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Zero-Downtime <span class="gradient-text-emerald">CI/CD Automation</span></h2>
+      <p class="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">Enterprise updates verified on live infrastructure: Code pushes deploy in under 35 seconds.</p>
+
+      <!-- Visual Stage Pipeline Flow -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mt-6">
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 01</div>
+          <div class="text-xs font-bold text-white mt-1">SCM Checkout</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">1.3s</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 02</div>
+          <div class="text-xs font-bold text-white mt-1">Python Lint</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">3.0s (0 err)</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 03</div>
+          <div class="text-xs font-bold text-white mt-1">Compile SPI</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">15.0s (Maven)</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 04</div>
+          <div class="text-xs font-bold text-white mt-1">Docker Build</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">588ms</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 05</div>
+          <div class="text-xs font-bold text-white mt-1">Push to GHCR</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">3.0s</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+
+        <div class="glass-card p-3 rounded-xl border border-emerald-500/30 text-center">
+          <div class="text-[10px] font-mono text-emerald-400">STAGE 06</div>
+          <div class="text-xs font-bold text-white mt-1">Deploy AWS</div>
+          <div class="text-[10px] text-slate-400 mt-1 font-mono">6.0s (Live)</div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto mt-2"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div class="glass-card p-5 rounded-xl border border-slate-800">
+          <h4 class="text-white text-sm font-semibold flex items-center gap-2">
+            <span class="text-emerald-400">🛡️</span> Continuous Quality Gate
+          </h4>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Every code commit automatically executes flake8 static analysis and compiles the Keycloak Java SPI. If a developer accidentally breaks syntax, the deployment aborts before touching production.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-xl border border-slate-800">
+          <h4 class="text-white text-sm font-semibold flex items-center gap-2">
+            <span class="text-emerald-400">🔄</span> 2-Second Rolling Reload
+          </h4>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Using <code class="text-emerald-300">docker compose up -d --no-deps attendance</code>, application containers swap seamlessly in under 2 seconds without restarting the database or interrupting logged-in users.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: BUSINESS IMPACT & ROI -->
+    <section class="slide flex-col justify-center py-6" id="slide-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4 w-fit">
+        Measurable Returns
+      </div>
+      <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">Business Value & <span class="gradient-text-emerald">Tangible ROI</span></h2>
+      <p class="text-slate-400 text-sm md:text-base mt-2 max-w-2xl">Proven operational outcomes delivered to executive leadership.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 text-center">
+          <div class="text-4xl font-extrabold text-emerald-400 font-mono">85%</div>
+          <h4 class="text-white font-bold text-base mt-2">Less Admin Overhead</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Automates manual attendance tallying, paper leave approvals, and email follow-ups. HR saves over 30 hours per month during payroll closing.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 text-center">
+          <div class="text-4xl font-extrabold text-sky-400 font-mono">100%</div>
+          <h4 class="text-white font-bold text-base mt-2">Dispute Elimination</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Transparent punch timelines, precision GPS distance logs, and objection desks provide complete clarity for field engineers and management.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 text-center">
+          <div class="text-4xl font-extrabold text-indigo-400 font-mono">&lt; 15 min</div>
+          <h4 class="text-white font-bold text-base mt-2">Turnkey Deployment</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Packaged in standard Docker containers with a battle-tested Production Bible. Deploys to any AWS, Azure, or on-premise government server in 15 minutes.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: OBJECTION HANDLING CHEAT SHEET -->
+    <section class="slide flex-col justify-center py-6" id="slide-9">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-slate-300 text-xs font-semibold mb-4 w-fit">
+        Executive Due Diligence
+      </div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Security & Governance FAQ</h2>
+      <p class="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl">Direct answers to technical and operational compliance questions.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <h4 class="text-white text-xs font-bold text-emerald-400">Q: Can an employee spoof their GPS with a Fake Location app?</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            <strong>A:</strong> No. The Android app checks Android's native location provider flag (<code class="text-slate-200">isFromMockProvider</code>). Any mock attempt is blocked, rejected by the server, and logged as a tampering flag.
+          </p>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <h4 class="text-white text-xs font-bold text-emerald-400">Q: Can a Project Manager alter past attendance to cover for someone?</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            <strong>A:</strong> No. In our access control rules (<code class="text-slate-200">can_edit_attendance</code>), past dates are locked for PMs. Only the authorized System Admin has compliance override privileges.
+          </p>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <h4 class="text-white text-xs font-bold text-emerald-400">Q: Does Keycloak duplicate employee passwords in its own database?</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            <strong>A:</strong> Zero shadow users. Keycloak connects dynamically via our custom Java 21 SPI directly to your master PostgreSQL database using BCrypt cryptographic hashes.
+          </p>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border border-slate-800">
+          <h4 class="text-white text-xs font-bold text-emerald-400">Q: What happens if an engineer loses internet connectivity on-site?</h4>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            <strong>A:</strong> The mobile app cryptographically caches the timestamped punch event locally and synchronizes securely with the server as soon as connection is restored.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: CALL TO ACTION & LIVE DEMO -->
+    <section class="slide flex-col justify-center items-center text-center py-10" id="slide-10">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-6">
+        Ready for Production
+      </div>
+      <h2 class="text-4xl md:text-6xl font-extrabold tracking-tight max-w-3xl leading-tight">
+        Experience the System <span class="gradient-text-emerald">Live Right Now</span>
+      </h2>
+      <p class="text-slate-400 text-base md:text-lg max-w-xl mt-4 font-normal">
+        All modules, roles, and automated CI/CD pipelines are fully operational and waiting for your inspection.
+      </p>
+
+      <div class="flex flex-wrap gap-4 mt-8 justify-center">
+        <a href="http://100.26.29.54:8080/job/attendance-pipeline/" target="_blank" class="px-6 py-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-white font-semibold text-sm transition flex items-center gap-2">
+          <span>Inspect Jenkins CI/CD (Build #4)</span>
+          <span class="text-emerald-400 font-mono text-xs">32s ✅</span>
+        </a>
+      </div>
+
+      <div class="glass-card p-4 rounded-xl border border-slate-800 mt-10 max-w-md text-left">
+        <div class="text-[11px] font-mono text-slate-400 mb-2">Live Demonstration Credentials:</div>
+        <div class="text-xs text-slate-300 space-y-1 font-mono">
+          <div>• Admin Portal: <span class="text-emerald-400">admin@keenable.io</span></div>
+          <div>• PM Portal: <span class="text-sky-400">pm.sharma@keenable.io</span></div>
+          <div>• Field Engineer: <span class="text-indigo-400">dev.arun@keenable.io</span></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Presenter Speaker Notes Drawer (Collapsible) -->
+  <aside id="speakerNotesDrawer" class="hidden bg-slate-900/95 border-t border-slate-800 p-4 w-full max-w-7xl mx-auto rounded-t-2xl backdrop-blur-md">
+    <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+      <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+        🎙️ Presenter Script & Talking Points (Slide <span id="notesSlideNumber">1</span>)
+      </span>
+      <button onclick="toggleNotes()" class="text-slate-400 hover:text-white text-xs font-mono">✕ Close</button>
+    </div>
+    <p id="speakerNotesContent" class="text-xs text-slate-300 leading-relaxed font-sans">
+      "Welcome everyone. Today we are showcasing the UPSC-ORA Attendance and Field Workforce Operations System..."
+    </p>
+  </aside>
+
+  <!-- Bottom Navigation Bar -->
+  <footer class="w-full px-6 py-4 flex items-center justify-between border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky bottom-0 z-50">
+    <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+      <span>Use</span>
+      <kbd class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">←</kbd>
+      <kbd class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">→</kbd>
+      <span>or Space to navigate</span>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button onclick="prevSlide()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1">
+        <span>← Previous</span>
+      </button>
+      <button onclick="nextSlide()" class="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1 shadow-lg shadow-emerald-500/20">
+        <span>Next Slide →</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 10;
+
+    const speakerNotes = {
+      1: "Opening Hook: 'Good morning/afternoon everyone. Today we are excited to showcase our Next-Generation UPSC-ORA Attendance & Workforce Operations Platform. In today's landscape of distributed field personnel, hybrid offices, and strict compliance demands, tracking attendance on paper or disconnected biometrics is a multi-million-rupee risk. Our system solves this with 99.8% precision, zero duplicate accounts, and instantaneous automated cloud deployments.'",
+      2: "The Pain Points: 'Before demonstrating the solution, let's look at the reality most organizations face. First is Proxy and Ghost attendance: field personnel punching in while sitting at home using fake GPS apps. Second is Approval Chaos: leaves get stuck in email chains for days. And third is Audit Vulnerability: project managers altering records weeks later. Our platform was engineered from day one to eliminate all three.'",
+      3: "The Unified Solution: 'Here is our three-pillar architecture: First, the WebPortal for leadership and project managers with live rosters and payroll exports. Second, our native Android mobile application with cryptographic geofencing and anti-spoofing. And third, our enterprise Keycloak 26 Identity broker with zero shadow users.'",
+      4: "Role-Based Access Control: 'Let's examine how the system feels for each user. For the System Admin, it provides complete organizational governance, 1-click resource transfer between projects, and audit overrides. For the Project Manager, it gives a focused daily roster for their team, leave approvals, and geofence management. And for the Field Engineer, it's a clean self-service portal to punch in and check balances.'",
+      5: "Mobile App & Anti-Tampering: 'Now notice this live interactive simulator on the screen. When an engineer punches in normally, our Haversine algorithm calculates their exact distance. If an employee tries to punch from 450 meters away, it is flagged. And if an employee turns on a Fake GPS spoofing application, our Android kernel-level inspection instantly catches the mock location flag.'",
+      6: "Enterprise Technical Architecture: 'From an engineering and security perspective, we follow government-grade standards: Keycloak 26 with Quarkus, physical multi-database isolation in PostgreSQL 17 using Foreign Data Wrappers, Gunicorn process safety, and tuned Nginx SSL termination with 256k buffer sizes to prevent cookie truncation.'",
+      7: "DevOps & CI/CD: 'One of our proudest achievements is our automated pipeline running on AWS. Every single code commit is automatically linted, compiled in Java 21, packaged in Docker, published to GitHub Container Registry, and deployed live to AWS with zero downtime in just 32 seconds.'",
+      8: "Business Impact & ROI: 'What does this mean for your bottom line? 85% reduction in administrative overhead during payroll week, 100% dispute elimination through immutable audit logs, and a turnkey system that deploys in 15 minutes.'",
+      9: "Security & Governance FAQ: 'These are the most common questions raised by IT Security and Compliance officers: How we block fake GPS, why PMs cannot alter historical records, how zero shadow user federation works, and how offline mobile caching protects against network drops.'",
+      10: "Closing & Call to Action: 'Thank you for your time. The system is live and running right now. Let's open the live portals together and explore any specific workflow you would like to see in action!'"
+    };
+
+    function updateSlide() {
+      document.querySelectorAll('.slide').forEach((s, idx) => {
+        s.classList.toggle('active', idx + 1 === currentSlide);
+      });
+      document.getElementById('slideCounter').textContent = 
+        `${String(currentSlide).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+      
+      // Update dots
+      const dotsContainer = document.getElementById('slideDots');
+      dotsContainer.innerHTML = '';
+      for (let i = 1; i <= totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `w-2 h-2 rounded-full transition-all cursor-pointer ${
+          i === currentSlide ? 'w-6 bg-emerald-400' : 'bg-slate-800 hover:bg-slate-700'
+        }`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+
+      // Update speaker notes
+      document.getElementById('notesSlideNumber').textContent = currentSlide;
+      document.getElementById('speakerNotesContent').textContent = speakerNotes[currentSlide] || '';
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    function goToSlide(n) {
+      currentSlide = n;
+      updateSlide();
+    }
+
+    function switchRole(role) {
+      document.querySelectorAll('.role-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`role-panel-${role}`).classList.remove('hidden');
+
+      ['admin', 'pm', 'engineer'].forEach(r => {
+        const tab = document.getElementById(`tab-${r}`);
+        if (r === role) {
+          tab.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition";
+        } else {
+          tab.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+        }
+      });
+    }
+
+    function testSim(mode) {
+      const icon = document.getElementById('simStatusIcon');
+      const title = document.getElementById('simStatusTitle');
+      const sub = document.getElementById('simStatusSub');
+      const dist = document.getElementById('simDistance');
+
+      if (mode === 'normal') {
+        icon.className = "w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mx-auto mb-2";
+        icon.textContent = "📍";
+        title.textContent = "Within Site Boundary";
+        title.className = "text-sm font-bold text-white";
+        sub.textContent = "UPSC Head Office (Dholpur House)";
+        dist.textContent = "Distance: 14.2 meters (Radius: 150m)";
+        dist.className = "text-xs font-mono text-emerald-400 mt-2";
+      } else if (mode === 'out') {
+        icon.className = "w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl mx-auto mb-2";
+        icon.textContent = "⚠️";
+        title.textContent = "Outside Site Boundary (Flagged)";
+        title.className = "text-sm font-bold text-amber-400";
+        sub.textContent = "Off-Site Punch Location Detected";
+        dist.textContent = "Distance: 452.8 meters (Exceeds 150m Limit)";
+        dist.className = "text-xs font-mono text-amber-400 mt-2";
+      } else if (mode === 'mock') {
+        icon.className = "w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl mx-auto mb-2";
+        icon.textContent = "🛡️";
+        title.textContent = "Fake GPS Tampering Blocked";
+        title.className = "text-sm font-bold text-rose-400";
+        sub.textContent = "FLAG_MOCK_LOCATION Provider Detected";
+        dist.textContent = "Action: Punch Rejected & Logged to PM Desk";
+        dist.className = "text-xs font-mono text-rose-400 mt-2";
+      }
+    }
+
+    function toggleNotes() {
+      const drawer = document.getElementById('speakerNotesDrawer');
+      const isHidden = drawer.classList.contains('hidden');
+      drawer.classList.toggle('hidden');
+      document.getElementById('notesToggleText').textContent = isHidden ? 'Hide Speaker Notes' : 'Show Speaker Notes';
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotes();
+      }
+    });
+
+    // Initialize
+    updateSlide();
+  </script>
+</body>
+</html>
