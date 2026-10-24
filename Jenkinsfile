@@ -48,7 +48,7 @@ pipeline {
             steps {
                 sh """
                     cd attendance-service
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
+                    docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
                 """
             }
         }
