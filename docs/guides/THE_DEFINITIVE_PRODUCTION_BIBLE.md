@@ -756,7 +756,7 @@ Install via **Manage Jenkins > Plugins**:
 4. `SSH Agent Plugin`
 5. `Credentials Binding Plugin`
 
-### 13.3 Production `Jenkinsfile`
+### 13.3 Production `Jenkinsfile` (Tested & Live Verified)
 Place in the root of your repository:
 
 ```groovy
@@ -764,87 +764,110 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY_HOST = 'registry.gitlab.com'
-        IMAGE_NAME    = 'registry.gitlab.com/your-group/attendance'
-        IMAGE_TAG     = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+        REGISTRY_HOST = 'ghcr.io'
+        GITHUB_USER   = 'aditya-vikram90'
+        IMAGE_NAME    = 'ghcr.io/aditya-vikram90/attendance-service'
+        IMAGE_TAG     = "${env.BUILD_NUMBER}"
         DEPLOY_PATH   = '/opt/attendance-stack'
     }
 
     options {
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 15, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
         disableConcurrentBuilds()
     }
 
     stages {
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
         stage('Python Lint') {
-            agent { docker { image 'python:3.12-slim'; reuseNode true } }
             steps {
                 sh '''
-                    pip install --no-cache-dir flake8
-                    flake8 attendance-service --count --select=E9,F63,F7,F82 --show-source --statistics
+                    CID=$(hostname 2>/dev/null || echo "jenkins")
+                    docker run --rm --volumes-from "$CID" -w "$PWD/attendance-service" python:3.12-slim bash -c "
+                        pip install --no-cache-dir flake8 && \
+                        flake8 . --exclude=venv,__pycache__ --count --select=E9,F63,F7,F82 --show-source --statistics
+                    "
                 '''
             }
         }
 
-        stage('Build Keycloak SPI (Java 21)') {
-            agent { docker { image 'maven:3.9-eclipse-temurin-21'; reuseNode true } }
+        stage('Compile Keycloak Java SPI') {
             steps {
-                dir('keycloak-spi') {
-                    sh 'mvn clean package -DskipTests'
-                }
+                sh '''
+                    CID=$(hostname 2>/dev/null || echo "jenkins")
+                    docker run --rm --volumes-from "$CID" -w "$PWD/keycloak-spi" maven:3.9-eclipse-temurin-21 mvn clean package -DskipTests
+                    ls -lh keycloak-spi/target/*.jar
+                '''
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Build & Tag Docker Image') {
             steps {
-                script {
-                    dir('attendance-service') {
-                        sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest ."
-                    }
-                }
-                withCredentials([usernamePassword(credentialsId: 'gitlab-registry-creds', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-                    sh '''
-                        echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin "$REGISTRY_HOST"
+                sh """
+                    cd attendance-service
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .
+                """
+            }
+        }
+
+        stage('Push to GitHub Container Registry') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ghcr-credentials', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
+                    sh """
+                        echo "\$GH_TOKEN" | docker login "${REGISTRY_HOST}" -u "\$GH_USER" --password-stdin
                         docker push "${IMAGE_NAME}:${IMAGE_TAG}"
                         docker push "${IMAGE_NAME}:latest"
-                        docker logout "$REGISTRY_HOST"
-                    '''
+                        docker logout "${REGISTRY_HOST}"
+                    """
                 }
             }
         }
 
-        stage('Deploy to AWS EC2') {
+        stage('Deploy to AWS Server') {
             steps {
                 withCredentials([
                     string(credentialsId: 'aws-server-ip', variable: 'SERVER_IP'),
-                    usernamePassword(credentialsId: 'gitlab-registry-creds', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')
+                    usernamePassword(credentialsId: 'ghcr-credentials', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')
                 ]) {
                     sshagent(['aws-ec2-ssh-key']) {
                         sh """
+                            # 1. Transfer SPI JAR to /tmp (avoids permission errors on /opt)
                             scp -o StrictHostKeyChecking=no keycloak-spi/target/keycloak-attendance-user-storage-1.0.0.jar \
-                                ubuntu@${SERVER_IP}:${DEPLOY_PATH}/local-replica/providers/
+                                ubuntu@\${SERVER_IP}:/tmp/keycloak-attendance-user-storage-1.0.0.jar
 
-                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} << 'EOF'
-                                sudo -i
-                                cd ${DEPLOY_PATH}
-                                echo "${REG_PASS}" | docker login -u "${REG_USER}" --password-stdin "${REGISTRY_HOST}"
-                                docker pull "${IMAGE_NAME}:latest"
-                                docker tag "${IMAGE_NAME}:latest" localhost/attendance:latest
+                            # 2. Deploy container and install SPI on AWS
+                            ssh -o StrictHostKeyChecking=no ubuntu@\${SERVER_IP} "bash -s" << EOF
+                                sudo cp /tmp/keycloak-attendance-user-storage-1.0.0.jar \${DEPLOY_PATH}/local-replica/providers/
+                                sudo chown -R ubuntu:docker \${DEPLOY_PATH}
+                                cd \${DEPLOY_PATH}
+                                echo "\${GH_TOKEN}" | docker login "\${REGISTRY_HOST}" -u "\${GH_USER}" --password-stdin
+                                docker pull "\${IMAGE_NAME}:latest"
+                                docker tag "\${IMAGE_NAME}:latest" localhost/attendance:latest
                                 docker compose up -d --no-deps attendance
                                 docker restart keycloak
                                 sleep 5
-                                HEALTH=\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8090/healthz || echo "000")
-                                [ "\$HEALTH" -eq 200 ] || [ "\$HEALTH" -eq 302 ] || exit 1
-                            EOF
+                                HEALTH=\\\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8090/healthz || echo "000")
+                                echo "Health check HTTP status: \\\$HEALTH"
+                                [ "\\\$HEALTH" -eq 200 ] || [ "\\\$HEALTH" -eq 302 ] || exit 1
+EOF
                         """
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✓ Deployment successful! Image ${IMAGE_NAME}:${IMAGE_TAG} is live."
+        }
+        failure {
+            echo "✗ Deployment failed! Check the console output."
         }
     }
 }
@@ -936,3 +959,7 @@ Add to cron (`crontab -e`):
 | **`Resource not found for url .../realms/keenable/users`** | Keycloak started before realm creation | Run `docker exec keycloak /opt/keycloak/bin/kcadm.sh create realms -s realm=keenable ...` to configure. |
 | **Gunicorn duplicate automated emails** | Multiple Gunicorn workers spawned (`-w 4`) running internal scheduler multiple times | Gunicorn MUST run with `-w 1 --threads 8` because the daily email scheduler lives in the app process. |
 | **Nginx redirect loop on `/attendance`** | Nginx missing trailing slash or `X-Forwarded-Prefix` | Include `proxy_set_header X-Forwarded-Prefix /attendance;` and `proxy_pass http://127.0.0.1:8090/;`. |
+| **Jenkins `IllegalArgumentException: IMAGE_NAME`** | Groovy string interpolation `${username-sub}` evaluated as arithmetic subtraction; `env.GIT_COMMIT` evaluated as null before SCM checkout | Use static single quotes `'ghcr.io/...'` and derive tag from `${env.BUILD_NUMBER}`. |
+| **DooD Maven/Lint: Empty mounted directory** | When Jenkins runs in Docker with host socket, `-v $(pwd):/app` looks for path on the host, where named volume `jenkins_home` does not exist | Use `--volumes-from "$CID"` (`CID=$(hostname)`) so Docker mounts Jenkins' actual workspace volume. |
+| **Python Lint `F821 undefined name` on dynamic globals** | `mobile.py` registers functions into `app.py` at runtime; static analysis tools (`flake8`) parse AST before runtime | Call injected symbols using `globals()["mobile_refresh"](...)` to preserve dynamic dispatch cleanly. |
+| **SSH Deploy `scp: Permission denied` on `/opt/...`** | User `ubuntu` lacks write permissions to overwrite files originally owned by `root:root` in `/opt/attendance-stack` | Always `scp` the artifact to `/tmp/`, then execute `sudo cp /tmp/... /opt/...` inside the SSH step. |
