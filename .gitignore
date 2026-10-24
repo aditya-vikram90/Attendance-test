@@ -37,3 +37,4 @@ target/
 keycloak-spi/target/
 local-replica/dumps/
 local-replica/providers/*.jar
+.venv/
