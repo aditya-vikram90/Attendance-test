@@ -73,8 +73,6 @@ services:
       GRACE_MIN: "15"
       WEEKLY_OFF: "Sat,Sun"
       TZ_NAME: Asia/Kolkata
-    volumes:
-      - ./attendance-service:/app:rw
     depends_on:
       openproject-db:
         condition: service_healthy

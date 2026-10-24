@@ -74,19 +74,22 @@ pipeline {
                 ]) {
                     sshagent(['aws-ec2-ssh-key']) {
                         sh """
-                            # 1. Transfer SPI JAR to /tmp (avoids permission errors on /opt)
+                            # 1. Transfer SPI JAR and docker-compose.yml to /tmp
                             scp -o StrictHostKeyChecking=no keycloak-spi/target/keycloak-attendance-user-storage-1.0.0.jar \
                                 ubuntu@\${SERVER_IP}:/tmp/keycloak-attendance-user-storage-1.0.0.jar
+                            scp -o StrictHostKeyChecking=no docker-compose.yml \
+                                ubuntu@\${SERVER_IP}:/tmp/docker-compose.yml
 
                             # 2. Deploy container and install SPI on AWS
                             ssh -o StrictHostKeyChecking=no ubuntu@\${SERVER_IP} "bash -s" << EOF
                                 sudo cp /tmp/keycloak-attendance-user-storage-1.0.0.jar \${DEPLOY_PATH}/local-replica/providers/
+                                sudo cp /tmp/docker-compose.yml \${DEPLOY_PATH}/docker-compose.yml
                                 sudo chown -R ubuntu:docker \${DEPLOY_PATH}
                                 cd \${DEPLOY_PATH}
                                 echo "\${GH_TOKEN}" | docker login "\${REGISTRY_HOST}" -u "\${GH_USER}" --password-stdin
                                 docker pull "\${IMAGE_NAME}:latest"
                                 docker tag "\${IMAGE_NAME}:latest" localhost/attendance:latest
-                                docker compose up -d --no-deps attendance
+                                docker compose up -d --force-recreate --no-deps attendance
                                 docker restart keycloak
                                 sleep 5
                                 HEALTH=\\\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8090/healthz || echo "000")
